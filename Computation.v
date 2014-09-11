@@ -1,4 +1,4 @@
-(** A beginning of a basic web server. *)
+(** The definition of a computation, used to represent concurrent programs. *)
 Require Import Coq.Lists.List.
 
 Import ListNotations.
