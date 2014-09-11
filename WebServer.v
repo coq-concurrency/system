@@ -1,25 +1,29 @@
-(** A beginning of a basic webserver. *)
+(** A beginning of a basic web server. *)
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
 
 Import ListNotations.
 
+(** A list of types to specify the shared memory or the output channels. *)
 Module Signature.
   Definition t := list Type.
 End Signature.
 
+(** Shared memory. *)
 Module Memory.
   Inductive t : Signature.t -> Type :=
   | Nil : t []
   | Cons : forall (A : Type) (sig : Signature.t), A -> t sig -> t (A :: sig).
   Arguments Cons [A sig] _ _.
   
+  (** The first shared memory cell. *)
   Definition head (A : Type) (sig : Signature.t) (mem : t (A :: sig)) : A :=
     match mem with
     | Cons _ _ x _ => x
     end.
   Arguments head [A sig] _.
   
+  (** The tail of the shared memory. *)
   Definition tail (A : Type) (sig : Signature.t) (mem : t (A :: sig)) : t sig :=
     match mem with
     | Cons _ _ _ mem => mem
@@ -27,6 +31,7 @@ Module Memory.
   Arguments tail [A sig] _.
 End Memory.
 
+(** List of output channels. *)
 Module Output.
   Inductive t : Signature.t -> Type :=
   | Nil : t []
@@ -34,6 +39,7 @@ Module Output.
     list A -> t channels -> t (A :: channels).
   Arguments Cons [A channels] _ _.
   
+  (** The first output channel. *)
   Definition head (A : Type) (channels : Signature.t)
     (output : t (A :: channels)) : list A :=
     match output with
@@ -41,6 +47,7 @@ Module Output.
     end.
   Arguments head [A channels] _.
   
+  (** The tail of the output channels. *)
   Definition tail (A : Type) (channels : Signature.t)
     (output : t (A :: channels)) : t channels :=
     match output with
@@ -48,6 +55,7 @@ Module Output.
     end.
   Arguments tail [A channels] _.
   
+  (** A list of empty output channels. *)
   Fixpoint init (channels : Signature.t) : t channels :=
     match channels with
     | [] => Nil
@@ -55,12 +63,14 @@ Module Output.
     end.
 End Output.
 
+(** The signatures of the shared memory and of the output channels. *)
 Module Env.
   Record t := New {
     references : Signature.t;
     channels : Signature.t }.
 End Env.
 
+(** A reference to a shared memory cell. *)
 Module Ref.
   Class C (A : Type) (env : Env.t) : Type := New {
     get : Memory.t (Env.references env) -> A;
@@ -77,6 +87,7 @@ Module Ref.
     set mem x := Memory.Cons (Memory.head mem) (set (Memory.tail mem) x) }.
 End Ref.
 
+(** A reference to an output channel. *)
 Module Out.
   Class C (A : Type) (env : Env.t) : Type := New {
     write : Output.t (Env.channels env) -> A -> Output.t (Env.channels env) }.
@@ -90,6 +101,7 @@ Module Out.
     write output x := Output.Cons (Output.head output) (write (Output.tail output) x) }.
 End Out.
 
+(** Definition of a computation. *)
 Module C.
   Inductive t (env : Env.t) : Type -> Type :=
   | ret : forall (A : Type), A ->
@@ -123,12 +135,14 @@ Module C.
     | write _ _ v => (tt, mem, Out.write output v)
     end.
 
+  (** Run a computation on an initialized shared memory. *)
   Definition run (references : Signature.t) (channels : Signature.t) (A : Type)
     (mem : Memory.t references) (x : t (Env.New references channels) A)
     : A * Memory.t references * Output.t channels :=
     run_aux _ _ _ mem (Output.init channels) x.
   Arguments run [references] _ [A] _ _.
 
+  (** Monadic notation. *)
   Module Notations.
     Notation "'let!' X ':=' A 'in' B" := (bind A (fun X => B))
       (at level 200, X ident, A at level 100, B at level 200).
@@ -139,21 +153,25 @@ Module C.
     Notation "'do!' A 'in' B" := (bind A (fun _ => B))
       (at level 200, B at level 200).
   End Notations.
+End C.
 
-  Import Notations.
+(** Functions on lists. *)
+Module List.
+  Import C.Notations.
 
-  Fixpoint iter {env : Env.t} (A : Type)
-    (l : list A) (f : A -> C.t env unit)
+  (** Iterate a computation over a list. *)
+  Fixpoint iter {env : Env.t} (A : Type) (l : list A) (f : A -> C.t env unit)
     : C.t env unit :=
     match l with
-    | [] => ret tt
+    | [] => C.ret tt
     | x :: l =>
       do! f x in
       iter _ l f
     end.
   Arguments iter {env} [A] _ _.
-End C.
+End List.
 
+(** Some basic tests. *)
 Module Test.
   Import C.Notations.
   Open Local Scope string.
@@ -195,12 +213,15 @@ Module Test.
   Compute C.run [nat : Type] (Memory.Cons 15 Memory.Nil) (double_print 12).
 End Test.
 
+(** * A definition of a toy web server. *)
+(** Incoming event. *)
 Module Event.
   Inductive t :=
-  | Get : string -> t
-  | Put : string -> string -> t.
+  | Get : string -> t (* Get the profile of a user. *)
+  | Put : string -> string -> t (* Update the profile of a user. *).
 End Event.
 
+(** Server's answer. *)
 Module Answer.
   Inductive t :=
   | Ok : string -> t
@@ -223,43 +244,51 @@ Module String.
     end.
 End String.
 
+(** The server's database. *)
 Module Model.
+  (** A association list of user / profile. *)
   Definition t := list (string * string).
 
+  (** An empty model. *)
   Definition empty : t :=
     [].
 
-  Fixpoint add (model : t) (user : string) (status : string) : t :=
+  (** Add or update an user profile. *)
+  Fixpoint add (model : t) (user : string) (profile : string) : t :=
     match model with
-    | [] => [(user, status)]
-    | (user', status') :: model =>
+    | [] => [(user, profile)]
+    | (user', profile') :: model =>
       if String.eqb user user' then
-        (user, status) :: model
+        (user, profile) :: model
       else
-        (user', status') :: add model user status
+        (user', profile') :: add model user profile
     end.
 
+  (** If the database contains the user name. *)
   Fixpoint does_contain (model : t) (user : string) : bool :=
     match model with
     | [] => false
     | (user', _) :: model => orb (String.eqb user user') (does_contain model user)
     end.
 
+  (** Try to find the profile of the user. *)
   Fixpoint find (model : t) (user : string) : option string :=
     match model with
     | [] => None
-    | (user', status') :: model =>
+    | (user', profile') :: model =>
       if String.eqb user user' then
-        Some status'
+        Some profile'
       else
         find model user
     end.
 End Model.
 
+(** The server. *)
 Module TestServer.
   Import C.Notations.
   Open Local Scope string.
 
+  (** The main function: handle an event. *)
   Definition process {env : Env.t} `{Ref.C Model.t env} `{Out.C Answer.t env}
     (event : Event.t) : C.t env unit :=
     match event with
@@ -267,19 +296,20 @@ Module TestServer.
       let! model := C.get _ in
       match Model.find model user with
       | None => C.write _ (Answer.Error "user not found")
-      | Some status => C.write _ (Answer.Ok status)
+      | Some profile => C.write _ (Answer.Ok profile)
       end
-    | Event.Put user status =>
+    | Event.Put user profile =>
       let! model := C.get _ in
-      do! C.set _ (Model.add model user status) in
+      do! C.set _ (Model.add model user profile) in
       if Model.does_contain model user then
         C.write _ (Answer.Ok "user updated")
       else
         C.write _ (Answer.Ok "user added")
     end.
 
+  (** Run the server sequentially on a list of events. *)
   Definition run_on_events (events : list Event.t) : list Answer.t :=
-    match C.run [Answer.t : Type] (Memory.Cons Model.empty Memory.Nil) (C.iter events process) with
+    match C.run [Answer.t : Type] (Memory.Cons Model.empty Memory.Nil) (List.iter events process) with
     | (_, _, output) => Output.head output
     end.
 
