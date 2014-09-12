@@ -77,30 +77,30 @@ Module Model.
 End Model.
 
 (** The main server function: handles an event. *)
-Definition process {env : Env.t} `{Ref.C Model.t env} `{Out.C Answer.t env}
-  (event : Event.t) : C.t env unit :=
+Definition process {sig : Signature.t} `{Ref.C Model.t sig} (event : Event.t)
+  : C.t sig Answer.t unit :=
   match event with
   | Event.Get user =>
     let! model := C.get _ in
     match Model.find model user with
-    | None => C.write _ (Answer.Error "user not found")
-    | Some profile => C.write _ (Answer.Ok profile)
+    | None => C.write (Answer.Error "user not found")
+    | Some profile => C.write (Answer.Ok profile)
     end
   | Event.Put user profile =>
     let! model := C.get _ in
     do! C.set _ (Model.add model user profile) in
     if Model.does_contain model user then
-      C.write _ (Answer.Ok "user updated")
+      C.write (Answer.Ok "user updated")
     else
-      C.write _ (Answer.Ok "user added")
+      C.write (Answer.Ok "user added")
   end.
 
 (** Tests. *)
 Module Test.
   (** Run the server sequentially on a list of events. *)
   Definition run_on_events (events : list Event.t) : list Answer.t :=
-    match C.run [Answer.t : Type] (Memory.Cons Model.empty Memory.Nil) (List.iter events process) with
-    | (_, _, output) => Output.head output
+    match C.run (Memory.Cons Model.empty Memory.Nil) (List.iter events process) with
+    | (_, _, output) => output
     end.
 
   Compute run_on_events [Event.Get "me"].
