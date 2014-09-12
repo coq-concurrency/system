@@ -49,8 +49,12 @@ Module StdLib.
 End StdLib.
 
 Module Test.
+  Definition resolv : FileName.t := {|
+    FileName.path := ["etc"];
+    FileName.name := "resolv.conf" |}.
+
   Definition start {sig : Signature.t} (_ : unit) : C.t sig Output.t unit :=
-    StdLib.open {| FileName.path := ["etc"]; FileName.name := "resolv.conf" |}.
+    StdLib.open resolv.
 
   Definition handler {sig : Signature.t} (input : Input.t)
     : C.t sig Output.t unit :=
@@ -61,4 +65,18 @@ Module Test.
     | Input.read _ None => StdLib.log "cannot read the file"
     | Input.read _ (Some data) => StdLib.log data
     end.
+
+  Definition run (inputs : list Input.t) : list Output.t :=
+    let program :=
+      do! start tt in
+      List.iter inputs handler in
+    match C.run Memory.Nil program with
+    | (_, _, output) => output
+    end.
+
+  Compute run [].
+  Compute run [Input.cannot_open resolv].
+  Compute run [Input.opened 12].
+  Compute run [Input.opened 12; Input.read 12 None].
+  Compute run [Input.opened 12; Input.read 12 (Some "nameserver 34.123.45.46")].
 End Test.
