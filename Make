@@ -6,5 +6,6 @@ Computation.v
 File.v
 Pervasives.v
 StdLib.v
+String.v
 Test.v
 ToyWebServer.v
