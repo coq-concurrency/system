@@ -14,7 +14,7 @@ Module ReadFile.
   (** The file to open. *)
   Definition resolv : File.Name.t := {|
     File.Name.path := ["etc"];
-    File.Name.name := "resolv.conf" |}.
+    File.Name.base := "resolv.conf" |}.
 
   (** Start the program. *)
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
@@ -25,7 +25,7 @@ Module ReadFile.
     match input with
     | Input.file input =>
       match input with
-      | File.Input.read data => Log.log data
+      | File.Input.read _ data => Log.log data
       end
     | _ => C.ret tt
     end.
@@ -41,7 +41,7 @@ Module ReadFile.
     end.
 
   Compute run [].
-  Compute run [File.Input.read "nameserver 34.123.45.46"].
+  Compute run [File.Input.read resolv "nameserver 34.123.45.46"].
 End ReadFile.
 
 (** An echo server logging all the incoming messages. *)

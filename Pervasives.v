@@ -1,5 +1,6 @@
 (** Basic type and event definitions. *)
 Require Import Coq.Strings.String.
+Require Import String.
 
 (** Events to log data. *)
 Module Log.
@@ -16,17 +17,24 @@ Module File.
     (** A file name is a path and a base name. *)
     Record t : Type := {
       path : list string;
-      name : string }.
+      base : string }.
 
     (** Convert a file name to a single string. *)
     Definition to_string (file_name : t) : string :=
-      name file_name.
+      base file_name.
+
+    (** Test equality. *)
+    Definition eqb (file_name1 file_name2 : t) : bool :=
+      if List.list_eq_dec string_dec (path file_name1) (path file_name2) then
+        String.eqb (base file_name1) (base file_name2)
+      else
+        false.
   End Name.
 
   (** Incoming events. *)
   Module Input.
     Inductive t : Type :=
-    | read : string -> t (** The file content had been read. *).
+    | read : Name.t -> string -> t (** The file content had been read. *).
   End Input.
 
   (** Generated events. *)
@@ -43,8 +51,16 @@ Module TCPServerSocket.
   End Id.
 
   Module ConnectionId.
+    Require Import Coq.Numbers.Natural.Peano.NPeano.
+
     Inductive t : Type :=
     | new : nat -> t.
+
+    (** Test equality. *)
+    Definition eqb (id1 id2 : t) : bool :=
+      match (id1, id2) with
+      | (new id1, new id2) => Nat.eqb id1 id2
+      end.
   End ConnectionId.
 
   Module Input.

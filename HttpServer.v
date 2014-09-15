@@ -29,8 +29,20 @@ Module Url.
   Inductive t : Type :=
   | new : string -> t.
 
+  Definition to_string (url : t) : string :=
+    match url with
+    | new url => url
+    end.
+
   Definition of_string (url : string) : option t :=
     Some (new url).
+
+  Definition to_file_name (url : t) : option File.Name.t :=
+    match url with
+    | new url => Some {|
+      File.Name.path := [];
+      File.Name.base := url |}
+    end.
 End Url.
 
 (** Parse an HTTP request. *)
@@ -50,3 +62,85 @@ Host: example.com
 Referer: http://example.com/
 User-Agent: CERN-LineMode/2.15 libwww/2.17b3" =
   Some (Method.get, Url.new "/page.html").
+
+(** The list of connected clients. *)
+Module Clients.
+  (** A association list of connection ids / requested files. *)
+  Definition t := list (TCPServerSocket.ConnectionId.t * File.Name.t).
+
+  (** Add (or update) a client's request. *)
+  Fixpoint add (clients : t) (client : TCPServerSocket.ConnectionId.t)
+    (file_name : File.Name.t) : t :=
+    match clients with
+    | [] => [(client, file_name)]
+    | (client', file_name') :: clients =>
+      if TCPServerSocket.ConnectionId.eqb client client' then
+        (client, file_name) :: clients
+      else
+        (client', file_name') :: add clients client file_name
+    end.
+
+  (** Try to find a client for a file name. *)
+  Fixpoint find (clients : t) (file_name : File.Name.t)
+    : option TCPServerSocket.ConnectionId.t :=
+    match clients with
+    | [] => None
+    | (client', file_name') :: clients =>
+      if File.Name.eqb file_name file_name' then
+        Some client'
+      else
+        find clients file_name
+    end.
+
+  (** Remove a client. *)
+  Fixpoint remove (clients : t) (client : TCPServerSocket.ConnectionId.t) : t :=
+    match clients with
+    | [] => []
+    | (client', file_name') :: clients =>
+      if TCPServerSocket.ConnectionId.eqb client client' then
+        clients
+      else
+        (client', file_name') :: remove clients client
+    end.
+End Clients.
+
+(** Start the server. *)
+Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
+  TCPServerSocket.bind 80.
+
+(** Handle requests. *)
+Definition handler {sig : Signature.t} `{Ref.C Clients.t sig} (input : Input.t)
+  : C sig unit :=
+  match input with
+    | Input.socket input =>
+      match input with
+      | TCPServerSocket.Input.bound _ => Log.log "Server socket opened."
+      | TCPServerSocket.Input.accepted _ =>
+        Log.log "Client connection accepted."
+      | TCPServerSocket.Input.read client request =>
+        match parse request with
+        | None => Log.log ("Invalid request: " ++ request)
+        | Some (Method.get, url) =>
+          match Url.to_file_name url with
+          | Some file_name =>
+            let! clients := C.get _ in
+            C.set _ (Clients.add clients client file_name)
+          | None => Log.log ("Invalid url: " ++ Url.to_string url)
+          end
+        end
+      end
+    | Input.file input =>
+      match input with
+      | File.Input.read file_name data =>
+        let! clients := C.get _ in
+        match Clients.find clients file_name with
+        | Some client =>
+          do! C.set _ (Clients.remove clients client) in
+          do! TCPServerSocket.write client data in
+          TCPServerSocket.close_connection client
+        | None =>
+          Log.log ("No client to receive the file " ++
+            File.Name.to_string file_name)
+        end
+      end
+    end.
