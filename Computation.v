@@ -118,26 +118,36 @@ Module Test.
   Import C.Notations.
   Open Local Scope string.
 
+  Definition run (sig : Signature.t) (O A : Type)
+    (mem : Memory.t sig) (x : C.t sig O A) : list O :=
+    match C.run mem x with
+    | (_, _, outputs) => outputs
+    end.
+  Arguments run [sig O A] _ _.
+
   Definition hello_world {sig : Signature.t} (_ : unit)
     : C.t sig (string + nat) unit :=
     do! C.write (inl "Hello ") in
     C.write (inl "world!").
 
-  Compute C.run Memory.Nil (hello_world tt).
+  Check eq_refl : run Memory.Nil (hello_world tt) =
+    [inl "world!"; inl "Hello "].
 
   Definition read_and_print {sig : Signature.t} `{Ref.C nat sig}
     (_ : unit) : C.t sig (string + nat) unit :=
     let! n : nat := C.get _ in
     C.write (inr n).
 
-  Compute C.run (Memory.Cons 12 Memory.Nil) (read_and_print tt).
+  Check eq_refl : run (Memory.Cons 12 Memory.Nil) (read_and_print tt) =
+    [inr 12].
 
   Definition hello_read_print {sig : Signature.t} `{Ref.C nat sig}
     (_ : unit) : C.t sig (string + nat) unit :=
     do! hello_world tt in
     read_and_print tt.
 
-  Compute C.run (Memory.Cons 12 Memory.Nil) (hello_read_print tt).
+  Check eq_refl : run (Memory.Cons 12 Memory.Nil) (hello_read_print tt) =
+    [inr 12; inl "world!"; inl "Hello "].
 
   Definition incr_by {sig : Signature.t} `{Ref.C nat sig}
     (n : nat) : C.t sig nat unit :=
@@ -152,5 +162,5 @@ Module Test.
     let! n : nat := C.get _ in
     C.write n.
 
-  Compute C.run (Memory.Cons 15 Memory.Nil) (double_print 12).
+  Check eq_refl : run (Memory.Cons 15 Memory.Nil) (double_print 12) = [24].
 End Test.

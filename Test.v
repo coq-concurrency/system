@@ -40,8 +40,11 @@ Module ReadFile.
     | (_, _, output) => output
     end.
 
-  Compute run [].
-  Compute run [File.Input.read resolv "nameserver 34.123.45.46"].
+
+  Check eq_refl : run [] = [Output.file (File.Output.read resolv)].
+  Check eq_refl : run [File.Input.read resolv "nameserver 34.123.45.46"] = [
+    Output.log (Log.Output.write "nameserver 34.123.45.46");
+    Output.file (File.Output.read resolv)].
 End ReadFile.
 
 (** An echo server logging all the incoming messages. *)
@@ -75,10 +78,22 @@ Module EchoServer.
     | (_, _, output) => output
     end.
 
-  Compute run [].
-  Compute run [TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12)].
-  Compute run [
+  Check eq_refl : run [] = [Output.socket (TCPServerSocket.Output.bind 8383)].
+  Check eq_refl : run [
+    TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12)] = [
+    Output.log (Log.Output.write "Server socket opened.");
+    Output.socket (TCPServerSocket.Output.bind 8383)].
+  Check eq_refl : run [
     TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12);
     TCPServerSocket.Input.accepted (TCPServerSocket.ConnectionId.new 23);
-    TCPServerSocket.Input.read (TCPServerSocket.ConnectionId.new 23) "hello"].
+    TCPServerSocket.Input.read (TCPServerSocket.ConnectionId.new 23) "hi"] = [
+    Output.socket
+      (TCPServerSocket.Output.close_connection
+      (TCPServerSocket.ConnectionId.new 23));
+    Output.socket
+      (TCPServerSocket.Output.write (TCPServerSocket.ConnectionId.new 23) "hi");
+    Output.log (Log.Output.write "Input: hi");
+    Output.log (Log.Output.write "Client connection accepted.");
+    Output.log (Log.Output.write "Server socket opened.");
+    Output.socket (TCPServerSocket.Output.bind 8383)].
 End EchoServer.
