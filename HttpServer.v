@@ -68,6 +68,10 @@ Module Clients.
   (** A association list of connection ids / requested files. *)
   Definition t := list (TCPServerSocket.ConnectionId.t * File.Name.t).
 
+  (** An empty table of clients. *)
+  Definition empty : t :=
+    [].
+
   (** Add (or update) a client's request. *)
   Fixpoint add (clients : t) (client : TCPServerSocket.ConnectionId.t)
     (file_name : File.Name.t) : t :=
@@ -124,7 +128,8 @@ Definition handler {sig : Signature.t} `{Ref.C Clients.t sig} (input : Input.t)
           match Url.to_file_name url with
           | Some file_name =>
             let! clients := C.get _ in
-            C.set _ (Clients.add clients client file_name)
+            do! C.set _ (Clients.add clients client file_name) in
+            Log.log ("File " ++ File.Name.to_string file_name ++ " requested")
           | None => Log.log ("Invalid url: " ++ Url.to_string url)
           end
         end
@@ -144,3 +149,40 @@ Definition handler {sig : Signature.t} `{Ref.C Clients.t sig} (input : Input.t)
         end
       end
     end.
+
+(** Some tests *)
+Module Test.
+  (** Run the program sequentially on a list of input events. *)
+  Definition run (inputs : list Input.t) : list Output.t :=
+    let program :=
+      do! start tt in
+      List.iter inputs handler in
+    match C.run (Memory.Cons Clients.empty Memory.Nil) program with
+    | (_, _, output) => output
+    end.
+
+  Check eq_refl : run [] = [Output.socket (TCPServerSocket.Output.bind 80)].
+
+  Definition client := TCPServerSocket.ConnectionId.new 12.
+  Definition request :=
+    "GET /page.html HTTP/1.0
+Host: example.com
+Referer: http://example.com/
+User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
+
+  Check eq_refl : run [
+    Input.socket (TCPServerSocket.Input.accepted client);
+    Input.socket (TCPServerSocket.Input.read client "wrong request")] = [
+    Output.log (Log.Output.write "Invalid request: wrong request");
+    Output.log (Log.Output.write "Client connection accepted.");
+    Output.socket (TCPServerSocket.Output.bind 80)].
+  Check eq_refl : run [
+    Input.socket (TCPServerSocket.Input.accepted client);
+    Input.socket (TCPServerSocket.Input.read client request)] = [
+    Output.log (Log.Output.write "File /page.html requested");
+    Output.log (Log.Output.write "Client connection accepted.");
+    Output.socket (TCPServerSocket.Output.bind 80)].
+  Compute run [
+    Input.socket (TCPServerSocket.Input.accepted client);
+    Input.socket (TCPServerSocket.Input.read client request)].
+End Test.
