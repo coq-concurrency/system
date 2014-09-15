@@ -2,7 +2,6 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
 Require Import Computation.
-Require Import Log.
 Require Import Pervasives.
 
 Import ListNotations.
@@ -24,15 +23,15 @@ Module TCPServerSocket.
   Definition bind {sig : Signature.t} (port : nat) : C sig unit :=
     C.write (Output.socket (TCPServerSocket.Output.bind port)).
 
-  Definition write {sig : Signature.t} (id : TCPServerSocket.Id.t)
+  Definition write {sig : Signature.t} (id : TCPServerSocket.ConnectionId.t)
     (data : string) : C sig unit :=
     C.write (Output.socket (TCPServerSocket.Output.write id data)).
-
-  Definition close_server {sig : Signature.t} (id : TCPServerSocket.Id.t)
-    : C sig unit :=
-    C.write (Output.socket (TCPServerSocket.Output.close_server id)).
 
   Definition close_connection {sig : Signature.t}
     (id : TCPServerSocket.ConnectionId.t) : C sig unit :=
     C.write (Output.socket (TCPServerSocket.Output.close_connection id)).
+
+  Definition close_server {sig : Signature.t} (id : TCPServerSocket.Id.t)
+    : C sig unit :=
+    C.write (Output.socket (TCPServerSocket.Output.close_server id)).
 End TCPServerSocket.

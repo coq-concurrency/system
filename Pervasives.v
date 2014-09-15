@@ -10,11 +10,13 @@ End Log.
 
 Module TCPServerSocket.
   Module Id.
-    Definition t : Type := nat.
+    Inductive t : Type :=
+    | new : nat -> t.
   End Id.
 
   Module ConnectionId.
-    Definition t : Type := nat.
+    Inductive t : Type :=
+    | new : nat -> t.
   End ConnectionId.
 
   Module Input.
@@ -28,8 +30,8 @@ Module TCPServerSocket.
     Inductive t : Type :=
     | bind : nat -> t
     | write : ConnectionId.t -> string -> t
-    | close_server : Id.t -> t
-    | close_connection : ConnectionId.t -> t.
+    | close_connection : ConnectionId.t -> t
+    | close_server : Id.t -> t.
   End Output.
 End TCPServerSocket.
 
