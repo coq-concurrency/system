@@ -17,6 +17,13 @@ Module Log.
     C.write (Output.log (Log.Output.write message)).
 End Log.
 
+(** Read a file. *)
+Module File.
+  (** Read all the content of a file. *)
+  Definition read {sig : Signature.t} (file_name : File.Name.t) : C sig unit :=
+    C.write (Output.file (File.Output.read file_name)).
+End File.
+
 (** TCP server socket. *)
 Module TCPServerSocket.
   (** Bind a socket. *)
@@ -30,8 +37,4 @@ Module TCPServerSocket.
   Definition close_connection {sig : Signature.t}
     (id : TCPServerSocket.ConnectionId.t) : C sig unit :=
     C.write (Output.socket (TCPServerSocket.Output.close_connection id)).
-
-  Definition close_server {sig : Signature.t} (id : TCPServerSocket.Id.t)
-    : C sig unit :=
-    C.write (Output.socket (TCPServerSocket.Output.close_server id)).
 End TCPServerSocket.

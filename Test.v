@@ -27,6 +27,7 @@ Definition handler {sig : Signature.t} (input : Input.t) : C sig unit :=
       do! TCPServerSocket.write id data in
       TCPServerSocket.close_connection id
     end
+  | _ => C.ret tt
   end.
 
 (** Run the program sequentially on a list of input events. *)
