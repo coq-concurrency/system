@@ -4,4 +4,7 @@
 # Compilation units
 Computation.v
 File.v
+Log.v
+Socket.v
+StdLib.v
 ToyWebServer.v
