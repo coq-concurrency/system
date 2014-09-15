@@ -182,7 +182,4 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
     Output.log (Log.Output.write "File /page.html requested");
     Output.log (Log.Output.write "Client connection accepted.");
     Output.socket (TCPServerSocket.Output.bind 80)].
-  Compute run [
-    Input.socket (TCPServerSocket.Input.accepted client);
-    Input.socket (TCPServerSocket.Input.read client request)].
 End Test.
