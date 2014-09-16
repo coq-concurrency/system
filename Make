@@ -3,6 +3,7 @@
 
 # Compilation units
 Computation.v
+Extraction.v
 HttpServer.v
 Pervasives.v
 StdLib.v

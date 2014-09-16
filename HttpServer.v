@@ -38,13 +38,7 @@ Module Url.
     Some (new url).
 
   Definition to_file_name (url : t) : option File.Name.t :=
-    let names : list string := String.split (to_string url) "/" in
-    match List.rev names with
-    | base :: path => Some {|
-      File.Name.path := List.rev path;
-      File.Name.base := base |}
-    | [] => None
-    end.
+    File.Name.of_string (to_string url).
 End Url.
 
 (** Parse an HTTP request. *)
@@ -193,3 +187,10 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
     Output.log (Log.Output.write "Client connection accepted.");
     Output.socket (TCPServerSocket.Output.bind 80)].
 End Test.
+
+(** * Tests of the extraction. *)
+Require Import Extraction.
+
+Definition test : unit := run_ocaml _ (Memory.Cons Clients.empty Memory.Nil)
+  start handler.
+Extraction "test" test.
