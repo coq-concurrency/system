@@ -114,42 +114,50 @@ End Clients.
 Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
   TCPServerSocket.bind 80.
 
-(** Handle requests. *)
+(** Handle sockets. *)
+Definition handle_sockets {sig : Signature.t} `{Ref.C Clients.t sig}
+  (input : TCPServerSocket.Input.t) : C sig unit :=
+  match input with
+  | TCPServerSocket.Input.bound _ => Log.log "Server socket opened."
+  | TCPServerSocket.Input.accepted _ =>
+    Log.log "Client connection accepted."
+  | TCPServerSocket.Input.read client request =>
+    match parse request with
+    | None => Log.log ("Invalid request: " ++ request)
+    | Some (Method.get, url) =>
+      match Url.to_file_name url with
+      | Some file_name =>
+        let! clients := C.get _ in
+        do! C.set _ (Clients.add clients client file_name) in
+        Log.log ("File " ++ File.Name.to_string file_name ++ " requested")
+      | None => Log.log ("Invalid url: " ++ Url.to_string url)
+      end
+    end
+  end.
+
+(** Handle files. *)
+Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
+  (input : File.Input.t) : C sig unit :=
+  match input with
+  | File.Input.read file_name data =>
+    let! clients := C.get _ in
+    match Clients.find clients file_name with
+    | Some client =>
+      do! C.set _ (Clients.remove clients client) in
+      do! TCPServerSocket.write client data in
+      TCPServerSocket.close_connection client
+    | None =>
+      Log.log ("No client to receive the file " ++
+        File.Name.to_string file_name)
+    end
+  end.
+
+(** Handle all requests. *)
 Definition handler {sig : Signature.t} `{Ref.C Clients.t sig} (input : Input.t)
   : C sig unit :=
   match input with
-    | Input.socket input =>
-      match input with
-      | TCPServerSocket.Input.bound _ => Log.log "Server socket opened."
-      | TCPServerSocket.Input.accepted _ =>
-        Log.log "Client connection accepted."
-      | TCPServerSocket.Input.read client request =>
-        match parse request with
-        | None => Log.log ("Invalid request: " ++ request)
-        | Some (Method.get, url) =>
-          match Url.to_file_name url with
-          | Some file_name =>
-            let! clients := C.get _ in
-            do! C.set _ (Clients.add clients client file_name) in
-            Log.log ("File " ++ File.Name.to_string file_name ++ " requested")
-          | None => Log.log ("Invalid url: " ++ Url.to_string url)
-          end
-        end
-      end
-    | Input.file input =>
-      match input with
-      | File.Input.read file_name data =>
-        let! clients := C.get _ in
-        match Clients.find clients file_name with
-        | Some client =>
-          do! C.set _ (Clients.remove clients client) in
-          do! TCPServerSocket.write client data in
-          TCPServerSocket.close_connection client
-        | None =>
-          Log.log ("No client to receive the file " ++
-            File.Name.to_string file_name)
-        end
-      end
+    | Input.socket input => handle_sockets input
+    | Input.file input => handle_files input
     end.
 
 (** Some tests *)
