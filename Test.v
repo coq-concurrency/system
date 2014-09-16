@@ -59,7 +59,8 @@ Module EchoServer.
     | Input.socket input =>
       match input with
       | TCPServerSocket.Input.bound _ => Log.log "Server socket opened."
-      | TCPServerSocket.Input.accepted _ => Log.log "Client connection accepted."
+      | TCPServerSocket.Input.accepted _ =>
+        Log.log "Client connection accepted."
       | TCPServerSocket.Input.read id data =>
         do! Log.log ("Input: " ++ data) in
         do! TCPServerSocket.write id data in

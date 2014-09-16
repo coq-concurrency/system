@@ -12,7 +12,7 @@ End Log.
 
 (** Events to read files. *)
 Module File.
-  (** The name of a file. *)
+  (** The name of a file. Only relative for now. *)
   Module Name.
     (** A file name is a path and a base name. *)
     Record t : Type := {
@@ -21,7 +21,8 @@ Module File.
 
     (** Convert a file name to a single string. *)
     Definition to_string (file_name : t) : string :=
-      base file_name.
+      List.fold_right (fun x y => (x ++ "/" ++ y) % string) (base file_name)
+        (path file_name).
 
     (** Test equality. *)
     Definition eqb (file_name1 file_name2 : t) : bool :=

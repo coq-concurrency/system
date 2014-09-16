@@ -38,10 +38,12 @@ Module Url.
     Some (new url).
 
   Definition to_file_name (url : t) : option File.Name.t :=
-    match url with
-    | new url => Some {|
-      File.Name.path := [];
-      File.Name.base := url |}
+    let names : list string := String.split (to_string url) "/" in
+    match List.rev names with
+    | base :: path => Some {|
+      File.Name.path := List.rev path;
+      File.Name.base := base |}
+    | [] => None
     end.
 End Url.
 
@@ -165,7 +167,7 @@ Module Test.
 
   Definition client := TCPServerSocket.ConnectionId.new 12.
   Definition request :=
-    "GET /page.html HTTP/1.0
+    "GET info/contact.html HTTP/1.0
 Host: example.com
 Referer: http://example.com/
 User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
@@ -179,7 +181,7 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
   Check eq_refl : run [
     Input.socket (TCPServerSocket.Input.accepted client);
     Input.socket (TCPServerSocket.Input.read client request)] = [
-    Output.log (Log.Output.write "File /page.html requested");
+    Output.log (Log.Output.write "File info/contact.html requested");
     Output.log (Log.Output.write "Client connection accepted.");
     Output.socket (TCPServerSocket.Output.bind 80)].
 End Test.
