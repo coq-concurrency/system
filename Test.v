@@ -45,6 +45,12 @@ Module ReadFile.
   Check eq_refl : run [File.Input.read resolv "nameserver 34.123.45.46"] = [
     Output.log (Log.Output.write "nameserver 34.123.45.46");
     Output.file (File.Output.read resolv)].
+
+  (** * Tests of the extraction. *)
+  Require Import Extraction.
+
+  Definition test : unit := run_ocaml _ Memory.Nil start handler.
+  Extraction "test" test.
 End ReadFile.
 
 (** An echo server logging all the incoming messages. *)

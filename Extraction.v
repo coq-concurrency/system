@@ -11,6 +11,20 @@ Import ListNotations.
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlString.
 
+Module String.
+  Definition from_list (s : string) : string := s.
+  Extract Constant from_list => "fun s ->
+    List.fold_right (fun c s -> String.make 1 c ^ s) s """"".
+
+  Definition to_list (s : string) : string := s.
+  Extract Constant to_list => "fun s ->
+    let l = ref [] in
+    for i = 0 to String.length s do
+      l := s.[i] :: !l
+    done;
+    List.rev !l".
+End String.
+
 (** How to run output events. *)
 Module Output.
   Module Log.
@@ -19,10 +33,11 @@ Module Output.
   End Log.
 
   Module File.
-    Definition read (file_descriptors : unit) (file_name : string) : unit := tt.
-    Extract Constant read => "fun file_descriptors file_name ->
-  let file_name_string = List.fold_right (fun c s -> String.make 1 c ^ s) file_name """" in
-  file_descriptors := (Unix.openfile file_name_string [Unix.O_RDONLY] 0o640, file_name) :: !file_descriptors".
+    Definition read (from_list : string -> string) (file_descriptors : unit)
+      (file_name : string) : unit := tt.
+    Extract Constant read => "fun from_list file_descriptors file_name ->
+      let file_name_string = from_list file_name in
+      file_descriptors := (Unix.openfile file_name_string [Unix.O_RDONLY] 0o640, file_name) :: !file_descriptors".
   End File.
 
   Module TCPServerSocket.
@@ -38,7 +53,8 @@ Module Output.
     | Output.file output =>
       match output with
       | File.Output.read file_name =>
-        File.read file_descriptors (File.Name.to_string file_name)
+        File.read String.from_list file_descriptors
+          (File.Name.to_string file_name)
       end
     | Output.socket _ => tt (* TODO *)
     end.
@@ -47,9 +63,9 @@ End Output.
 Definition run_ocaml_aux (sig : Signature.t) (mem : Memory.t sig)
   (start : Memory.t sig -> Memory.t sig * list Output.t)
   (handler : Input.t -> Memory.t sig -> Memory.t sig * list Output.t)
-  (run : unit -> Output.t -> unit)
+  (run : unit -> Output.t -> unit) (from_list : string -> string)
   : unit := tt.
-Extract Constant run_ocaml_aux => "fun _ mem start handler run ->
+Extract Constant run_ocaml_aux => "fun _ mem start handler run from_list ->
   let file_descriptors = ref [] in
   let (mem, outputs) = start mem in
   let mem = ref mem in

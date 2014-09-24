@@ -187,10 +187,3 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
     Output.log (Log.Output.write "Client connection accepted.");
     Output.socket (TCPServerSocket.Output.bind 80)].
 End Test.
-
-(** * Tests of the extraction. *)
-Require Import Extraction.
-
-Definition test : unit := run_ocaml _ (Memory.Cons Clients.empty Memory.Nil)
-  start handler.
-Extraction "test" test.
