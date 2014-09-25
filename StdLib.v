@@ -20,7 +20,7 @@ End Log.
 (** Read a file. *)
 Module File.
   (** Read all the content of a file. *)
-  Definition read {sig : Signature.t} (file_name : File.Name.t) : C sig unit :=
+  Definition read {sig : Signature.t} (file_name : string) : C sig unit :=
     C.write (Output.file (File.Output.read file_name)).
 End File.
 

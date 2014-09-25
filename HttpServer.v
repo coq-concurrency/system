@@ -13,7 +13,7 @@ Open Local Scope string.
 (** The kind of HTTP method. *)
 Module Method.
   (** For now, only the GET method is handled. *)
-  Inductive t : Type :=
+  Inductive t : Set :=
   | get : t.
 
   Definition of_string (method : string) : option t :=
@@ -23,31 +23,13 @@ Module Method.
       None.
 End Method.
 
-(** An url. *)
-Module Url.
-  (** For now, an url is just a string. *)
-  Inductive t : Type :=
-  | new : string -> t.
-
-  Definition to_string (url : t) : string :=
-    match url with
-    | new url => url
-    end.
-
-  Definition of_string (url : string) : option t :=
-    Some (new url).
-
-  Definition to_file_name (url : t) : option File.Name.t :=
-    File.Name.of_string (to_string url).
-End Url.
-
 (** Parse an HTTP request. *)
-Definition parse (request : string) : option (Method.t * Url.t) :=
+Definition parse (request : string) : option (Method.t * string) :=
   let items := String.split request " " in
   match items with
   | method :: url :: _ =>
-    match (Method.of_string method, Url.of_string url) with
-    | (Some method, Some url) => Some (method, url)
+    match Method.of_string method with
+    | Some method => Some (method, url)
     | _ => None
     end
   | _ => None
@@ -57,47 +39,47 @@ Check eq_refl : parse "GET /page.html HTTP/1.0
 Host: example.com
 Referer: http://example.com/
 User-Agent: CERN-LineMode/2.15 libwww/2.17b3" =
-  Some (Method.get, Url.new "/page.html").
+  Some (Method.get, "/page.html").
 
 (** The list of connected clients. *)
 Module Clients.
-  (** A association list of connection ids / requested files. *)
-  Definition t := list (TCPServerSocket.ConnectionId.t * File.Name.t).
+  (** A association list of client socket ids / requested files. *)
+  Definition t := list (TCPClientSocket.Id.t * string).
 
   (** An empty table of clients. *)
   Definition empty : t :=
     [].
 
   (** Add (or update) a client's request. *)
-  Fixpoint add (clients : t) (client : TCPServerSocket.ConnectionId.t)
-    (file_name : File.Name.t) : t :=
+  Fixpoint add (clients : t) (client : TCPClientSocket.Id.t)
+    (file_name : string) : t :=
     match clients with
     | [] => [(client, file_name)]
     | (client', file_name') :: clients =>
-      if TCPServerSocket.ConnectionId.eqb client client' then
+      if TCPClientSocket.Id.eqb client client' then
         (client, file_name) :: clients
       else
         (client', file_name') :: add clients client file_name
     end.
 
   (** Try to find a client for a file name. *)
-  Fixpoint find (clients : t) (file_name : File.Name.t)
-    : option TCPServerSocket.ConnectionId.t :=
+  Fixpoint find (clients : t) (file_name : string)
+    : option TCPClientSocket.Id.t :=
     match clients with
     | [] => None
     | (client', file_name') :: clients =>
-      if File.Name.eqb file_name file_name' then
+      if String.eqb file_name file_name' then
         Some client'
       else
         find clients file_name
     end.
 
   (** Remove a client. *)
-  Fixpoint remove (clients : t) (client : TCPServerSocket.ConnectionId.t) : t :=
+  Fixpoint remove (clients : t) (client : TCPClientSocket.Id.t) : t :=
     match clients with
     | [] => []
     | (client', file_name') :: clients =>
-      if TCPServerSocket.ConnectionId.eqb client client' then
+      if TCPClientSocket.Id.eqb client client' then
         clients
       else
         (client', file_name') :: remove clients client
@@ -108,24 +90,26 @@ End Clients.
 Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
   TCPServerSocket.bind 80.
 
-(** Handle sockets. *)
-Definition handle_sockets {sig : Signature.t} `{Ref.C Clients.t sig}
+(** Handle server sockets. *)
+Definition handle_server_sockets {sig : Signature.t}
   (input : TCPServerSocket.Input.t) : C sig unit :=
   match input with
   | TCPServerSocket.Input.bound _ => Log.log "Server socket opened."
-  | TCPServerSocket.Input.accepted _ =>
+  end.
+
+(** Handle client sockets. *)
+Definition handle_client_sockets {sig : Signature.t} `{Ref.C Clients.t sig}
+  (input : TCPClientSocket.Input.t) : C sig unit :=
+  match input with
+  | TCPClientSocket.Input.accepted _ =>
     Log.log "Client connection accepted."
-  | TCPServerSocket.Input.read client request =>
+  | TCPClientSocket.Input.read client request =>
     match parse request with
     | None => Log.log ("Invalid request: " ++ request)
     | Some (Method.get, url) =>
-      match Url.to_file_name url with
-      | Some file_name =>
-        let! clients := C.get _ in
-        do! C.set _ (Clients.add clients client file_name) in
-        Log.log ("File " ++ File.Name.to_string file_name ++ " requested")
-      | None => Log.log ("Invalid url: " ++ Url.to_string url)
-      end
+      let! clients := C.get _ in
+      do! C.set _ (Clients.add clients client url) in
+      Log.log ("File " ++ url ++ " requested.")
     end
   end.
 
@@ -138,11 +122,9 @@ Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
     match Clients.find clients file_name with
     | Some client =>
       do! C.set _ (Clients.remove clients client) in
-      do! TCPServerSocket.write client data in
-      TCPServerSocket.close_connection client
-    | None =>
-      Log.log ("No client to receive the file " ++
-        File.Name.to_string file_name)
+      do! TCPClientSocket.write client data in
+      TCPClientSocket.close client
+    | None => Log.log ("No client to receive the file " ++ file_name)
     end
   end.
 
@@ -150,9 +132,10 @@ Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
 Definition handler {sig : Signature.t} `{Ref.C Clients.t sig} (input : Input.t)
   : C sig unit :=
   match input with
-    | Input.socket input => handle_sockets input
-    | Input.file input => handle_files input
-    end.
+  | Input.client_socket input => handle_client_sockets input
+  | Input.server_socket input => handle_server_sockets input
+  | Input.file input => handle_files input
+  end.
 
 (** Some tests *)
 Module Test.
@@ -165,9 +148,10 @@ Module Test.
     | (_, _, output) => output
     end.
 
-  Check eq_refl : run [] = [Output.socket (TCPServerSocket.Output.bind 80)].
+  Check eq_refl : run [] = [
+    Output.server_socket (TCPServerSocket.Output.bind 80)].
 
-  Definition client := TCPServerSocket.ConnectionId.new 12.
+  Definition client := TCPClientSocket.Id.new 12.
   Definition request :=
     "GET info/contact.html HTTP/1.0
 Host: example.com
@@ -175,15 +159,16 @@ Referer: http://example.com/
 User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
 
   Check eq_refl : run [
-    Input.socket (TCPServerSocket.Input.accepted client);
-    Input.socket (TCPServerSocket.Input.read client "wrong request")] = [
+    Input.client_socket (TCPClientSocket.Input.accepted client);
+    Input.client_socket (TCPClientSocket.Input.read client "wrong request")] = [
     Output.log (Log.Output.write "Invalid request: wrong request");
     Output.log (Log.Output.write "Client connection accepted.");
-    Output.socket (TCPServerSocket.Output.bind 80)].
+    Output.server_socket (TCPServerSocket.Output.bind 80)].
+
   Check eq_refl : run [
-    Input.socket (TCPServerSocket.Input.accepted client);
-    Input.socket (TCPServerSocket.Input.read client request)] = [
-    Output.log (Log.Output.write "File info/contact.html requested");
+    Input.client_socket (TCPClientSocket.Input.accepted client);
+    Input.client_socket (TCPClientSocket.Input.read client request)] = [
+    Output.log (Log.Output.write "File info/contact.html requested.");
     Output.log (Log.Output.write "Client connection accepted.");
-    Output.socket (TCPServerSocket.Output.bind 80)].
+    Output.server_socket (TCPServerSocket.Output.bind 80)].
 End Test.
