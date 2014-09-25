@@ -30,10 +30,13 @@ Module File.
   End Output.
 End File.
 
+(** Events for the TCP client sockets. *)
 Module TCPClientSocket.
+  (** Identifier for a client socket (hopefully unique). *)
   Module Id.
     Require Import Coq.Numbers.Natural.Peano.NPeano.
 
+    (** An integer. *)
     Inductive t : Set :=
     | new : nat -> t.
 
@@ -44,12 +47,14 @@ Module TCPClientSocket.
       end.
   End Id.
 
+  (** Incoming events. *)
   Module Input.
     Inductive t : Set :=
     | accepted (id : Id.t)
     | read (id : Id.t) (content : string).
   End Input.
 
+  (** Generated events. *)
   Module Output.
     Inductive t : Set :=
     | write (id : Id.t) (message : string)
@@ -57,17 +62,22 @@ Module TCPClientSocket.
   End Output.
 End TCPClientSocket.
 
+(** Events for the TCP server sockets. *)
 Module TCPServerSocket.
+  (** Identifier for a server socket (hopefully unique). *)
   Module Id.
+    (** An integer. *)
     Inductive t : Set :=
     | new : nat -> t.
   End Id.
 
+  (** Incoming events. *)
   Module Input.
     Inductive t : Set :=
     | bound (id : Id.t).
   End Input.
 
+  (** Generated events. *)
   Module Output.
     Inductive t : Set :=
     | bind (port : nat)
@@ -75,6 +85,7 @@ Module TCPServerSocket.
   End Output.
 End TCPServerSocket.
 
+(** Incoming events. *)
 Module Input.
   Inductive t : Set :=
   | file : File.Input.t -> t
@@ -82,6 +93,7 @@ Module Input.
   | server_socket : TCPServerSocket.Input.t -> t.
 End Input.
 
+(** Generated events. *)
 Module Output.
   Inductive t : Set :=
   | log : Log.Output.t -> t

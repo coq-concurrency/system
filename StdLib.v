@@ -11,6 +11,7 @@ Import C.Notations.
 Definition C (sig : Signature.t) (A : Type) : Type :=
   C.t sig Output.t A.
 
+(** Log data. *)
 Module Log.
   (** Log a message on the standard output. *)
   Definition log {sig : Signature.t} (message : string) : C sig unit :=
