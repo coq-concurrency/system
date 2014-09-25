@@ -12,6 +12,8 @@ Module MLString.
   Parameter t : Set.
   Extract Constant t => "string".
 
+  Parameter append : t -> t -> t.
+
   Parameter to_string : t -> string.
   Parameter of_string : string -> t.
 
@@ -82,6 +84,32 @@ End Input.
 
 (** Export output events. *)
 Module Output.
+  Definition join (s1 s2 : MLString.t) : MLString.t :=
+    MLString.append (MLString.append s1 (MLString.of_string " ")) s2.
+
+  Definition export (output : Output.t) : MLString.t :=
+    let string s := MLString.of_string s in
+    let base64 s := Base64.encode (MLString.of_string s) in
+    let client_id id :=
+      MLString.of_nat (match id with TCPClientSocket.Id.new id => id end) in
+    let server_id id :=
+      MLString.of_nat (match id with TCPServerSocket.Id.new id => id end) in
+    match output with
+    | Output.log (Log.Output.write message) =>
+      join (string "Log.write") (base64 message)
+    | Output.file (File.Output.read file_name) =>
+      join (string "File.read") (base64 file_name)
+    | Output.client_socket (TCPClientSocket.Output.write id message) =>
+      join (string "TCPClientSocket.write")
+        (join (client_id id) (base64 message))
+    | Output.client_socket (TCPClientSocket.Output.close id) =>
+      join (string "TCPClientSocket.close") (client_id id)
+    | Output.server_socket (TCPServerSocket.Output.bind port) =>
+      let port := MLString.of_nat port in
+      join (string "TCPServerSocket.bind") port
+    | Output.server_socket (TCPServerSocket.Output.close id) =>
+      join (string "TCPServerSocket.close") (server_id id)
+    end.
 End Output.
 
 (*
