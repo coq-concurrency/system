@@ -6,7 +6,85 @@ Require Import Pervasives.
 Require Import StdLib.
 
 Import ListNotations.
+Open Local Scope string.
 
+Module MLString.
+  Parameter t : Set.
+  Extract Constant t => "string".
+
+  Parameter to_string : t -> string.
+  Parameter of_string : string -> t.
+
+  Parameter to_nat : t -> option nat.
+  Parameter of_nat : nat -> t.
+End MLString.
+
+Module Base64.
+  Parameter encode : MLString.t -> MLString.t.
+  Parameter decode : MLString.t -> MLString.t.
+End Base64.
+
+(** Import input events. *)
+Module Input.
+  Module Command.
+    Inductive t : Set :=
+    | file_read
+    | tcp_client_socket_accepted | tcp_client_socket_read
+    | tcp_server_socket_bound.
+
+    Parameter of_ml_string : MLString.t -> option t.
+  End Command.
+
+  Definition import_file_read (file_name : MLString.t) (content : MLString.t)
+    : Input.t :=
+    let file_name := MLString.to_string (Base64.decode file_name) in
+    let content := MLString.to_string (Base64.decode content) in
+    Input.file (File.Input.read file_name content).
+
+  Parameter tokenize : MLString.t -> list MLString.t.
+
+  Definition import (input : MLString.t) : Input.t + string :=
+    match tokenize input with
+    | [] => inr "The input cannot be empty."
+    | command :: arguments =>
+      match (Command.of_ml_string input, arguments) with
+      | (None, _) => inr "Invalid command."
+      | (Some Command.file_read, [file_name; content]) =>
+        let file_name := MLString.to_string (Base64.decode file_name) in
+        let content := MLString.to_string (Base64.decode content) in
+        inl (Input.file (File.Input.read file_name content))
+      | (Some Command.tcp_client_socket_accepted, [id]) =>
+        match MLString.to_nat id with
+        | None => inr "Expected an integer."
+        | Some id =>
+          let id := TCPClientSocket.Id.new id in
+          inl (Input.client_socket (TCPClientSocket.Input.accepted id))
+        end
+      | (Some Command.tcp_client_socket_read, [id; content]) =>
+        match MLString.to_nat id with
+        | None => inr "Expected an integer."
+        | Some id =>
+          let id := TCPClientSocket.Id.new id in
+          let content := MLString.to_string (Base64.decode content) in
+          inl (Input.client_socket (TCPClientSocket.Input.read id content))
+        end
+      | (Some Command.tcp_server_socket_bound, [id]) =>
+        match MLString.to_nat id with
+        | None => inr "Expected an integer."
+        | Some id =>
+          let id := TCPServerSocket.Id.new id in
+          inl (Input.server_socket (TCPServerSocket.Input.bound id))
+        end
+      | (Some _, _) => inr "Wrong number of arguments."
+      end
+    end.
+End Input.
+
+(** Export output events. *)
+Module Output.
+End Output.
+
+(*
 (** * A nice extraction for strings. *)
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlString.
@@ -93,4 +171,4 @@ Definition run_ocaml (sig : Signature.t) (mem : Memory.t sig)
     end in
   run_ocaml_aux sig mem (fun mem => last (C.run mem (start tt)))
     (fun input mem => last (C.run mem (handler input)))
-    Output.run.
+    Output.run.*)
