@@ -12,9 +12,7 @@ Open Local Scope string.
 (** Print the content of a file. *)
 Module ReadFile.
   (** The file to open. *)
-  Definition resolv : File.Name.t := {|
-    File.Name.path := ["etc"];
-    File.Name.base := "resolv.conf" |}.
+  Definition resolv : string := "/etc/resolv.conf".
 
   (** Start the program. *)
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
@@ -45,12 +43,6 @@ Module ReadFile.
   Check eq_refl : run [File.Input.read resolv "nameserver 34.123.45.46"] = [
     Output.log (Log.Output.write "nameserver 34.123.45.46");
     Output.file (File.Output.read resolv)].
-
-  (** * Tests of the extraction. *)
-  Require Import Extraction.
-
-  Definition test : unit := run_ocaml _ Memory.Nil start handler.
-  Extraction "test" test.
 End ReadFile.
 
 (** An echo server logging all the incoming messages. *)
@@ -62,22 +54,24 @@ Module EchoServer.
   (** Handle events. *)
   Definition handler {sig : Signature.t} (input : Input.t) : C sig unit :=
     match input with
-    | Input.socket input =>
+    | Input.server_socket input =>
       match input with
       | TCPServerSocket.Input.bound _ => Log.log "Server socket opened."
-      | TCPServerSocket.Input.accepted _ =>
+      end
+    | Input.client_socket input =>
+      match input with
+      | TCPClientSocket.Input.accepted _ =>
         Log.log "Client connection accepted."
-      | TCPServerSocket.Input.read id data =>
+      | TCPClientSocket.Input.read id data =>
         do! Log.log ("Input: " ++ data) in
-        do! TCPServerSocket.write id data in
-        TCPServerSocket.close_connection id
+        do! TCPClientSocket.write id data in
+        TCPClientSocket.close id
       end
     | _ => C.ret tt
     end.
 
   (** Run the program sequentially on a list of input events. *)
-  Definition run (inputs : list TCPServerSocket.Input.t) : list Output.t :=
-    let inputs := List.map Input.socket inputs in
+  Definition run (inputs : list Input.t) : list Output.t :=
     let program :=
       do! start tt in
       List.iter inputs handler in
@@ -85,22 +79,20 @@ Module EchoServer.
     | (_, _, output) => output
     end.
 
-  Check eq_refl : run [] = [Output.socket (TCPServerSocket.Output.bind 8383)].
+  Check eq_refl : run [] = [
+    Output.server_socket (TCPServerSocket.Output.bind 8383)].
   Check eq_refl : run [
-    TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12)] = [
+    Input.server_socket (TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12))] = [
     Output.log (Log.Output.write "Server socket opened.");
-    Output.socket (TCPServerSocket.Output.bind 8383)].
+    Output.server_socket (TCPServerSocket.Output.bind 8383)].
   Check eq_refl : run [
-    TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12);
-    TCPServerSocket.Input.accepted (TCPServerSocket.ConnectionId.new 23);
-    TCPServerSocket.Input.read (TCPServerSocket.ConnectionId.new 23) "hi"] = [
-    Output.socket
-      (TCPServerSocket.Output.close_connection
-      (TCPServerSocket.ConnectionId.new 23));
-    Output.socket
-      (TCPServerSocket.Output.write (TCPServerSocket.ConnectionId.new 23) "hi");
+    Input.server_socket (TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12));
+    Input.client_socket (TCPClientSocket.Input.accepted (TCPClientSocket.Id.new 23));
+    Input.client_socket (TCPClientSocket.Input.read (TCPClientSocket.Id.new 23) "hi")] = [
+    Output.client_socket (TCPClientSocket.Output.close (TCPClientSocket.Id.new 23));
+    Output.client_socket (TCPClientSocket.Output.write (TCPClientSocket.Id.new 23) "hi");
     Output.log (Log.Output.write "Input: hi");
     Output.log (Log.Output.write "Client connection accepted.");
     Output.log (Log.Output.write "Server socket opened.");
-    Output.socket (TCPServerSocket.Output.bind 8383)].
+    Output.server_socket (TCPServerSocket.Output.bind 8383)].
 End EchoServer.
