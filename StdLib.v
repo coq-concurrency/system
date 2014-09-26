@@ -14,7 +14,7 @@ Definition C (sig : Signature.t) (A : Type) : Type :=
 (** Log data. *)
 Module Log.
   (** Log a message on the standard output. *)
-  Definition log {sig : Signature.t} (message : string) : C sig unit :=
+  Definition write {sig : Signature.t} (message : string) : C sig unit :=
     C.write (Output.log (Log.Output.write message)).
 End Log.
 

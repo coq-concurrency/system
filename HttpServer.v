@@ -94,7 +94,7 @@ Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
 Definition handle_server_sockets {sig : Signature.t}
   (input : TCPServerSocket.Input.t) : C sig unit :=
   match input with
-  | TCPServerSocket.Input.bound _ => Log.log "Server socket opened."
+  | TCPServerSocket.Input.bound _ => Log.write "Server socket opened."
   end.
 
 (** Handle client sockets. *)
@@ -102,14 +102,14 @@ Definition handle_client_sockets {sig : Signature.t} `{Ref.C Clients.t sig}
   (input : TCPClientSocket.Input.t) : C sig unit :=
   match input with
   | TCPClientSocket.Input.accepted _ =>
-    Log.log "Client connection accepted."
+    Log.write "Client connection accepted."
   | TCPClientSocket.Input.read client request =>
     match parse request with
-    | None => Log.log ("Invalid request: " ++ request)
+    | None => Log.write ("Invalid request: " ++ request)
     | Some (Method.get, url) =>
       let! clients := C.get _ in
       do! C.set _ (Clients.add clients client url) in
-      Log.log ("File " ++ url ++ " requested.")
+      Log.write ("File " ++ url ++ " requested.")
     end
   end.
 
@@ -124,7 +124,7 @@ Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
       do! C.set _ (Clients.remove clients client) in
       do! TCPClientSocket.write client data in
       TCPClientSocket.close client
-    | None => Log.log ("No client to receive the file " ++ file_name)
+    | None => Log.write ("No client to receive the file " ++ file_name)
     end
   end.
 

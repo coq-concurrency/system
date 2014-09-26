@@ -9,7 +9,25 @@ Import ListNotations.
 Import C.Notations.
 Open Local Scope string.
 
-(** Print the content of a file. *)
+(** Says hello. *)
+Module HelloWorld.
+  (** Start the program. *)
+  Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
+    Log.write "Hello world!".
+
+  (** Handle events (no event to handle). *)
+  Definition handle {sig : Signature.t} (_ : Input.t) : C sig unit :=
+    C.ret tt.
+
+  Check eq_refl : C.run Memory.Nil (start tt) =
+    (tt, Memory.Nil, [Output.log (Log.Output.write "Hello world!")]).
+
+  Require Import Extraction.
+  Definition test := Extraction.run _ Memory.Nil start handle.
+  Extraction "test" test.
+End HelloWorld.
+
+(** Prints the content of a file. *)
 Module ReadFile.
   (** The file to open. *)
   Definition resolv : string := "/etc/resolv.conf".
@@ -23,7 +41,7 @@ Module ReadFile.
     match input with
     | Input.file input =>
       match input with
-      | File.Input.read _ data => Log.log data
+      | File.Input.read _ data => Log.write data
       end
     | _ => C.ret tt
     end.
@@ -56,14 +74,14 @@ Module EchoServer.
     match input with
     | Input.server_socket input =>
       match input with
-      | TCPServerSocket.Input.bound _ => Log.log "Server socket opened."
+      | TCPServerSocket.Input.bound _ => Log.write "Server socket opened."
       end
     | Input.client_socket input =>
       match input with
       | TCPClientSocket.Input.accepted _ =>
-        Log.log "Client connection accepted."
+        Log.write "Client connection accepted."
       | TCPClientSocket.Input.read id data =>
-        do! Log.log ("Input: " ++ data) in
+        do! Log.write ("Input: " ++ data) in
         do! TCPClientSocket.write id data in
         TCPClientSocket.close id
       end

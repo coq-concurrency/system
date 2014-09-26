@@ -134,7 +134,7 @@ Module Output.
     end.
 End Output.
 
-Definition run_ocaml (sig : Signature.t) (mem : Memory.t sig)
+Definition run (sig : Signature.t) (mem : Memory.t sig)
   (start : unit -> C sig unit) (handle : Input.t -> C sig unit) : unit :=
   let last triple :=
     match triple with
