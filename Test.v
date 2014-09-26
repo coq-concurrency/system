@@ -4,6 +4,7 @@ Require Import Coq.Strings.String.
 Require Import Computation.
 Require Import Pervasives.
 Require Import StdLib.
+Require Import Extraction.
 
 Import ListNotations.
 Import C.Notations.
@@ -22,7 +23,6 @@ Module HelloWorld.
   Check eq_refl : C.run Memory.Nil (start tt) =
     (tt, Memory.Nil, [Output.log (Log.Output.write "Hello world!")]).
 
-  Require Import Extraction.
   Definition hello_world := Extraction.run _ Memory.Nil start handle.
   Extraction "tests/hello_world" hello_world.
 End HelloWorld.
@@ -62,16 +62,17 @@ Module ReadFile.
     Output.log (Log.Output.write "nameserver 34.123.45.46");
     Output.file (File.Output.read resolv)].
 
-  Require Import Extraction.
   Definition read_file := Extraction.run _ Memory.Nil start handle.
   Extraction "tests/read_file" read_file.
 End ReadFile.
 
 (** An echo server logging all the incoming messages. *)
 Module EchoServer.
+  Definition port : nat := 4.
+
   (** Start the program. *)
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
-    TCPServerSocket.bind 8383.
+    TCPServerSocket.bind port.
 
   (** Handle events. *)
   Definition handle {sig : Signature.t} (input : Input.t) : C sig unit :=
@@ -86,8 +87,7 @@ Module EchoServer.
         Log.write "Client connection accepted."
       | TCPClientSocket.Input.read id data =>
         do! Log.write ("Input: " ++ data) in
-        do! TCPClientSocket.write id data in
-        TCPClientSocket.close id
+        TCPClientSocket.write id data
       end
     | _ => C.ret tt
     end.
@@ -102,23 +102,21 @@ Module EchoServer.
     end.
 
   Check eq_refl : run [] = [
-    Output.server_socket (TCPServerSocket.Output.bind 8383)].
+    Output.server_socket (TCPServerSocket.Output.bind port)].
   Check eq_refl : run [
     Input.server_socket (TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12))] = [
     Output.log (Log.Output.write "Server socket opened.");
-    Output.server_socket (TCPServerSocket.Output.bind 8383)].
+    Output.server_socket (TCPServerSocket.Output.bind port)].
   Check eq_refl : run [
     Input.server_socket (TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12));
     Input.client_socket (TCPClientSocket.Input.accepted (TCPClientSocket.Id.new 23));
     Input.client_socket (TCPClientSocket.Input.read (TCPClientSocket.Id.new 23) "hi")] = [
-    Output.client_socket (TCPClientSocket.Output.close (TCPClientSocket.Id.new 23));
     Output.client_socket (TCPClientSocket.Output.write (TCPClientSocket.Id.new 23) "hi");
     Output.log (Log.Output.write "Input: hi");
     Output.log (Log.Output.write "Client connection accepted.");
     Output.log (Log.Output.write "Server socket opened.");
-    Output.server_socket (TCPServerSocket.Output.bind 8383)].
+    Output.server_socket (TCPServerSocket.Output.bind port)].
 
-  Require Import Extraction.
   Definition echo_server := Extraction.run _ Memory.Nil start handle.
   Extraction "tests/echo_server" echo_server.
 End EchoServer.
