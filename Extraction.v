@@ -12,6 +12,12 @@ Import ListNotations.
 Open Local Scope string.
 
 Module Native.
+  Parameter seq : forall A, (unit -> unit) -> (unit -> A) -> A.
+  Arguments seq [A] _ _.
+  Extract Constant seq => "fun f g ->
+    f ();
+    g ()".
+
   Module String.
     Parameter t : Set.
     Extract Constant t => "string".
@@ -19,7 +25,7 @@ Module Native.
     Parameter to_string : t -> string.
     Extract Constant to_string => "fun s ->
       let l = ref [] in
-      for i = 0 to String.length s do
+      for i = 0 to String.length s - 1 do
         l := s.[i] :: !l
       done;
       List.rev !l".
@@ -61,13 +67,21 @@ Module Native.
 
     Parameter print_line : String.t -> t -> unit.
     Extract Constant print_line => "fun message (_, output) ->
-      output_string output (message ^ ""\n"")".
+      output_string output (message ^ ""\n"");
+      flush output".
 
-    Parameter fold_lines : forall A, t -> A -> (A -> String.t -> A) -> A.
+    Parameter fold_lines : forall A, t -> A -> (A -> String.t -> A) -> unit.
+    Extract Constant fold_lines => "fun (input, _) state f ->
+      let rec aux state =
+        try aux (f state (input_line input))
+        with End_of_file -> () in
+      aux state".
   End Process.
 
   Parameter print_error : String.t -> unit.
-  Extract Constant print_error => "prerr_endline".
+  Extract Constant print_error => "fun message ->
+    prerr_endline message;
+    flush stderr".
 End Native.
 
 (** Import input events. *)
@@ -185,19 +199,19 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
     match outputs with
     | [] => tt
     | output :: outputs =>
-      let _ := Native.Process.print_line (Output.export output) system in
-      print_outputs outputs
+      Native.seq (fun _ => Native.Process.print_line (Output.export output) system)
+        (fun _ => print_outputs outputs)
     end in
   let (mem, outputs) := last (C.run mem (start tt)) in
-  let _ := print_outputs outputs in
-  let _ := Native.Process.fold_lines _ system mem (fun mem input =>
-    match Input.import input with
-    | inl input =>
-      let (mem, outputs) := last (C.run mem (handle input)) in
-      mem
-    | inr error_message =>
-      let error_message := "Input ignored: " ++ error_message in
-      let _ := Native.print_error (Native.String.of_string error_message) in
-      mem
-    end) in
-  tt.
+  Native.seq (fun _ => print_outputs outputs)
+    (fun _ => Native.Process.fold_lines _ system mem (fun mem input =>
+      match Input.import input with
+      | inl input =>
+        let (mem, outputs) := last (C.run mem (handle input)) in
+        Native.seq (fun _ => print_outputs outputs) (fun _ => mem)
+      | inr error_message =>
+        let error_message := "Input ignored: " ++ error_message in
+        Native.seq
+          (fun _ => Native.print_error (Native.String.of_string error_message))
+          (fun _ => mem)
+      end)).

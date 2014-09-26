@@ -23,14 +23,14 @@ Module HelloWorld.
     (tt, Memory.Nil, [Output.log (Log.Output.write "Hello world!")]).
 
   Require Import Extraction.
-  Definition test := Extraction.run _ Memory.Nil start handle.
-  Extraction "test" test.
+  Definition hello_world := Extraction.run _ Memory.Nil start handle.
+  Extraction "tests/hello_world" hello_world.
 End HelloWorld.
 
 (** Prints the content of a file. *)
 Module ReadFile.
   (** The file to open. *)
-  Definition resolv : string := "/etc/resolv.conf".
+  Definition resolv : string := "README.md".
 
   (** Start the program. *)
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
@@ -61,6 +61,10 @@ Module ReadFile.
   Check eq_refl : run [File.Input.read resolv "nameserver 34.123.45.46"] = [
     Output.log (Log.Output.write "nameserver 34.123.45.46");
     Output.file (File.Output.read resolv)].
+
+  Require Import Extraction.
+  Definition read_file := Extraction.run _ Memory.Nil start handle.
+  Extraction "tests/read_file" read_file.
 End ReadFile.
 
 (** An echo server logging all the incoming messages. *)
@@ -113,4 +117,8 @@ Module EchoServer.
     Output.log (Log.Output.write "Client connection accepted.");
     Output.log (Log.Output.write "Server socket opened.");
     Output.server_socket (TCPServerSocket.Output.bind 8383)].
+
+  Require Import Extraction.
+  Definition echo_server := Extraction.run _ Memory.Nil start handle.
+  Extraction "tests/echo_server" echo_server.
 End EchoServer.
