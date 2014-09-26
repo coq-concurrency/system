@@ -188,4 +188,4 @@ End Test.
 Require Import Extraction.
 
 Definition http_server := Extraction.run _ mem start handle.
-Extraction "tests/http_server" http_server.
+Extraction "tests/httpServer" http_server.

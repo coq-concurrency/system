@@ -18,6 +18,13 @@ Module Log.
     C.write (Output.log (Log.Output.write message)).
 End Log.
 
+(** General system calls. *)
+Module System.
+  (** Exit the program. *)
+  Definition exit {sig : Signature.t} (_ : unit) : C sig unit :=
+    C.write (Output.system System.Output.exit).
+End System.
+
 (** Read a file. *)
 Module File.
   (** Read all the content of a file. *)

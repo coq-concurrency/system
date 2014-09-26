@@ -175,6 +175,7 @@ Module Output.
       join (string "Log.write") (base64 message)
     | Output.file (File.Output.read file_name) =>
       join (string "File.read") (base64 file_name)
+    | Output.system System.Output.exit => string "System.exit"
     | Output.client_socket (TCPClientSocket.Output.write id message) =>
       join (string "TCPClientSocket.write")
         (join (client_id id) (base64 message))

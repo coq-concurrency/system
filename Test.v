@@ -14,17 +14,20 @@ Open Local Scope string.
 Module HelloWorld.
   (** Start the program. *)
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
-    Log.write "Hello world!".
+    do! Log.write "Hello world!" in
+    System.exit tt.
 
   (** Handle events (no event to handle). *)
   Definition handle {sig : Signature.t} (_ : Input.t) : C sig unit :=
     C.ret tt.
 
   Check eq_refl : C.run Memory.Nil (start tt) =
-    (tt, Memory.Nil, [Output.log (Log.Output.write "Hello world!")]).
+    (tt, Memory.Nil, [
+      Output.system System.Output.exit;
+      Output.log (Log.Output.write "Hello world!")]).
 
   Definition hello_world := Extraction.run _ Memory.Nil start handle.
-  Extraction "tests/hello_world" hello_world.
+  Extraction "tests/helloWorld" hello_world.
 End HelloWorld.
 
 (** Prints the content of a file. *)
@@ -63,7 +66,7 @@ Module ReadFile.
     Output.file (File.Output.read resolv)].
 
   Definition read_file := Extraction.run _ Memory.Nil start handle.
-  Extraction "tests/read_file" read_file.
+  Extraction "tests/readFile" read_file.
 End ReadFile.
 
 (** An echo server logging all the incoming messages. *)
@@ -118,5 +121,5 @@ Module EchoServer.
     Output.server_socket (TCPServerSocket.Output.bind port)].
 
   Definition echo_server := Extraction.run _ Memory.Nil start handle.
-  Extraction "tests/echo_server" echo_server.
+  Extraction "tests/echoServer" echo_server.
 End EchoServer.
