@@ -19,7 +19,7 @@ Module ReadFile.
     File.read resolv.
 
   (** Handle events. *)
-  Definition handler {sig : Signature.t} (input : Input.t) : C sig unit :=
+  Definition handle {sig : Signature.t} (input : Input.t) : C sig unit :=
     match input with
     | Input.file input =>
       match input with
@@ -33,7 +33,7 @@ Module ReadFile.
     let inputs := List.map Input.file inputs in
     let program :=
       do! start tt in
-      List.iter inputs handler in
+      List.iter inputs handle in
     match C.run Memory.Nil program with
     | (_, _, output) => output
     end.
@@ -52,7 +52,7 @@ Module EchoServer.
     TCPServerSocket.bind 8383.
 
   (** Handle events. *)
-  Definition handler {sig : Signature.t} (input : Input.t) : C sig unit :=
+  Definition handle {sig : Signature.t} (input : Input.t) : C sig unit :=
     match input with
     | Input.server_socket input =>
       match input with
@@ -74,7 +74,7 @@ Module EchoServer.
   Definition run (inputs : list Input.t) : list Output.t :=
     let program :=
       do! start tt in
-      List.iter inputs handler in
+      List.iter inputs handle in
     match C.run Memory.Nil program with
     | (_, _, output) => output
     end.

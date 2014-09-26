@@ -129,7 +129,7 @@ Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
   end.
 
 (** Handle all requests. *)
-Definition handler {sig : Signature.t} `{Ref.C Clients.t sig} (input : Input.t)
+Definition handle {sig : Signature.t} `{Ref.C Clients.t sig} (input : Input.t)
   : C sig unit :=
   match input with
   | Input.client_socket input => handle_client_sockets input
@@ -143,7 +143,7 @@ Module Test.
   Definition run (inputs : list Input.t) : list Output.t :=
     let program :=
       do! start tt in
-      List.iter inputs handler in
+      List.iter inputs handle in
     match C.run (Memory.Cons Clients.empty Memory.Nil) program with
     | (_, _, output) => output
     end.

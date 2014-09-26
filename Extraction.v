@@ -20,6 +20,8 @@ Module Native.
 
     Parameter to_nat : t -> option nat.
     Parameter of_nat : nat -> t.
+
+    Parameter tokenize : t -> list t.
   End String.
 
   Module Base64.
@@ -31,8 +33,10 @@ Module Native.
     Parameter t : Set.
     Parameter run : String.t -> t.
     Parameter print_line : String.t -> t -> unit.
-    Parameter read_line : t -> String.t.
+    Parameter fold_lines : forall A, t -> A -> (A -> String.t -> A) -> A.
   End Process.
+
+  Parameter print_error : String.t -> unit.
 End Native.
 
 (** Import input events. *)
@@ -43,7 +47,17 @@ Module Input.
     | tcp_client_socket_accepted | tcp_client_socket_read
     | tcp_server_socket_bound.
 
-    Parameter of_native_string : Native.String.t -> option t.
+    Definition of_string (command : string) : option t :=
+      if String.eqb command "File.read" then
+        Some file_read
+      else if String.eqb command "TCPClientSocket.accepted" then
+        Some tcp_client_socket_accepted
+      else if String.eqb command "TCPClientSocket.read" then
+        Some tcp_client_socket_read
+      else if String.eqb command "TCPServerSocket.bound" then
+        Some tcp_server_socket_bound
+      else
+        None.
   End Command.
 
   Definition import_file_read (file_name : Native.String.t) (content : Native.String.t)
@@ -52,13 +66,12 @@ Module Input.
     let content := Native.String.to_string (Native.Base64.decode content) in
     Input.file (File.Input.read file_name content).
 
-  Parameter tokenize : Native.String.t -> list Native.String.t.
-
   Definition import (input : Native.String.t) : Input.t + string :=
-    match tokenize input with
+    match Native.String.tokenize input with
     | [] => inr "The input cannot be empty."
     | command :: arguments =>
-      match (Command.of_native_string input, arguments) with
+      let command := Command.of_string (Native.String.to_string command) in
+      match (command, arguments) with
       | (None, _) => inr "Invalid command."
       | (Some Command.file_read, [file_name; content]) =>
         let file_name := Native.String.to_string (Native.Base64.decode file_name) in
@@ -121,13 +134,33 @@ Module Output.
     end.
 End Output.
 
-(*Definition run_ocaml (sig : Signature.t) (mem : Memory.t sig)
-  (start : unit -> C sig unit) (handler : Input.t -> C sig unit) : unit :=
+Definition run_ocaml (sig : Signature.t) (mem : Memory.t sig)
+  (start : unit -> C sig unit) (handle : Input.t -> C sig unit) : unit :=
   let last triple :=
     match triple with
     | (x, y, z) => (y, z)
     end in
-  let (mem, outputs) := last (run (start tt)) in*)
+  let system := Native.Process.run (Native.String.of_string "./systemProxy.native") in
+  let fix print_outputs outputs :=
+    match outputs with
+    | [] => tt
+    | output :: outputs =>
+      let _ := Native.Process.print_line (Output.export output) system in
+      print_outputs outputs
+    end in
+  let (mem, outputs) := last (C.run mem (start tt)) in
+  let _ := print_outputs outputs in
+  let _ := Native.Process.fold_lines _ system mem (fun mem input =>
+    match Input.import input with
+    | inl input =>
+      let (mem, outputs) := last (C.run mem (handle input)) in
+      mem
+    | inr error_message =>
+      let error_message := "Input ignored: " ++ error_message in
+      let _ := Native.print_error (Native.String.of_string error_message) in
+      mem
+    end) in
+  tt.
 
 (*
 (** * A nice extraction for strings. *)
