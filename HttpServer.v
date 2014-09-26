@@ -86,6 +86,10 @@ Module Clients.
     end.
 End Clients.
 
+(** The initial memory. *)
+Definition mem : Memory.t _ :=
+  Memory.Cons Clients.empty Memory.Nil.
+
 (** Start the server. *)
 Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
   TCPServerSocket.bind 80.
@@ -109,9 +113,16 @@ Definition handle_client_sockets {sig : Signature.t} `{Ref.C Clients.t sig}
     | Some (Method.get, url) =>
       let! clients := C.get _ in
       do! C.set _ (Clients.add clients client url) in
-      Log.write ("File " ++ url ++ " requested.")
+      do! Log.write ("File " ++ url ++ " requested.") in
+      File.read url
     end
   end.
+
+Definition http_answer (content : string) : string :=
+  "HTTP/1.0 200 OK
+Content-Type: text/plain
+
+" ++ content.
 
 (** Handle files. *)
 Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
@@ -122,8 +133,7 @@ Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
     match Clients.find clients file_name with
     | Some client =>
       do! C.set _ (Clients.remove clients client) in
-      do! TCPClientSocket.write client data in
-      TCPClientSocket.close client
+      TCPClientSocket.write client (http_answer data)
     | None => Log.write ("No client to receive the file " ++ file_name)
     end
   end.
@@ -144,7 +154,7 @@ Module Test.
     let program :=
       do! start tt in
       List.iter inputs handle in
-    match C.run (Memory.Cons Clients.empty Memory.Nil) program with
+    match C.run mem program with
     | (_, _, output) => output
     end.
 
@@ -168,7 +178,14 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
   Check eq_refl : run [
     Input.client_socket (TCPClientSocket.Input.accepted client);
     Input.client_socket (TCPClientSocket.Input.read client request)] = [
+    Output.file (File.Output.read "info/contact.html");
     Output.log (Log.Output.write "File info/contact.html requested.");
     Output.log (Log.Output.write "Client connection accepted.");
     Output.server_socket (TCPServerSocket.Output.bind 80)].
 End Test.
+
+(** Extraction. *)
+Require Import Extraction.
+
+Definition http_server := Extraction.run _ mem start handle.
+Extraction "tests/http_server" http_server.
