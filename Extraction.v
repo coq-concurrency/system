@@ -1,6 +1,9 @@
 (** Extraction of computations to OCaml. *)
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
+Require Import ExtrOcamlBasic.
+Require Import ExtrOcamlIntConv.
+Require Import ExtrOcamlString.
 Require Import Computation.
 Require Import Pervasives.
 Require Import StdLib.
@@ -13,30 +16,58 @@ Module Native.
     Parameter t : Set.
     Extract Constant t => "string".
 
-    Parameter append : t -> t -> t.
-
     Parameter to_string : t -> string.
-    Parameter of_string : string -> t.
+    Extract Constant to_string => "fun s ->
+      let l = ref [] in
+      for i = 0 to String.length s do
+        l := s.[i] :: !l
+      done;
+      List.rev !l".
 
-    Parameter to_nat : t -> option nat.
-    Parameter of_nat : nat -> t.
+    Parameter of_string : string -> t.
+    Extract Constant of_string => "fun s ->
+      List.fold_right (fun c s -> String.make 1 c ^ s) s """"".
+
+    Parameter to_int : t -> option int.
+    Extract Constant to_int => "fun s ->
+      try Some (int_of_string s)
+      with Failure ""int_of_string"" -> None".
+
+    Parameter of_int : int -> t.
+    Extract Constant of_int => "string_of_int".
+
+    Parameter append : t -> t -> t.
+    Extract Constant append => "fun s1 s2 -> s1 ^ s2".
 
     Parameter tokenize : t -> list t.
+    Extract Constant tokenize => "fun s ->
+      Str.split (Str.regexp_string "" "") s".
   End String.
 
   Module Base64.
     Parameter encode : String.t -> String.t.
+    Extract Constant encode => "Base64.encode".
+
     Parameter decode : String.t -> String.t.
+    Extract Constant decode => "Base64.decode".
   End Base64.
 
   Module Process.
     Parameter t : Set.
+    Extract Constant t => "in_channel * out_channel".
+
     Parameter run : String.t -> t.
+    Extract Constant run => "Unix.open_process".
+
     Parameter print_line : String.t -> t -> unit.
+    Extract Constant print_line => "fun message (_, output) ->
+      output_string output (message ^ ""\n"")".
+
     Parameter fold_lines : forall A, t -> A -> (A -> String.t -> A) -> A.
   End Process.
 
   Parameter print_error : String.t -> unit.
+  Extract Constant print_error => "prerr_endline".
 End Native.
 
 (** Import input events. *)
@@ -66,6 +97,12 @@ Module Input.
     let content := Native.String.to_string (Native.Base64.decode content) in
     Input.file (File.Input.read file_name content).
 
+  Definition to_nat (n : Native.String.t) : option nat :=
+    match Native.String.to_int n with
+    | None => None
+    | Some n => Some (nat_of_int n)
+    end.
+
   Definition import (input : Native.String.t) : Input.t + string :=
     match Native.String.tokenize input with
     | [] => inr "The input cannot be empty."
@@ -78,14 +115,14 @@ Module Input.
         let content := Native.String.to_string (Native.Base64.decode content) in
         inl (Input.file (File.Input.read file_name content))
       | (Some Command.tcp_client_socket_accepted, [id]) =>
-        match Native.String.to_nat id with
+        match to_nat id with
         | None => inr "Expected an integer."
         | Some id =>
           let id := TCPClientSocket.Id.new id in
           inl (Input.client_socket (TCPClientSocket.Input.accepted id))
         end
       | (Some Command.tcp_client_socket_read, [id; content]) =>
-        match Native.String.to_nat id with
+        match to_nat id with
         | None => inr "Expected an integer."
         | Some id =>
           let id := TCPClientSocket.Id.new id in
@@ -93,7 +130,7 @@ Module Input.
           inl (Input.client_socket (TCPClientSocket.Input.read id content))
         end
       | (Some Command.tcp_server_socket_bound, [id]) =>
-        match Native.String.to_nat id with
+        match to_nat id with
         | None => inr "Expected an integer."
         | Some id =>
           let id := TCPServerSocket.Id.new id in
@@ -109,13 +146,16 @@ Module Output.
   Definition join (s1 s2 : Native.String.t) : Native.String.t :=
     Native.String.append (Native.String.append s1 (Native.String.of_string " ")) s2.
 
+  Definition of_nat (n : nat) : Native.String.t :=
+    Native.String.of_int (int_of_nat n).
+
   Definition export (output : Output.t) : Native.String.t :=
     let string s := Native.String.of_string s in
     let base64 s := Native.Base64.encode (Native.String.of_string s) in
     let client_id id :=
-      Native.String.of_nat (match id with TCPClientSocket.Id.new id => id end) in
+      of_nat (match id with TCPClientSocket.Id.new id => id end) in
     let server_id id :=
-      Native.String.of_nat (match id with TCPServerSocket.Id.new id => id end) in
+      of_nat (match id with TCPServerSocket.Id.new id => id end) in
     match output with
     | Output.log (Log.Output.write message) =>
       join (string "Log.write") (base64 message)
@@ -127,7 +167,7 @@ Module Output.
     | Output.client_socket (TCPClientSocket.Output.close id) =>
       join (string "TCPClientSocket.close") (client_id id)
     | Output.server_socket (TCPServerSocket.Output.bind port) =>
-      let port := Native.String.of_nat port in
+      let port := of_nat port in
       join (string "TCPServerSocket.bind") port
     | Output.server_socket (TCPServerSocket.Output.close id) =>
       join (string "TCPServerSocket.close") (server_id id)
