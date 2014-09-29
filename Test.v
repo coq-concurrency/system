@@ -14,8 +14,7 @@ Open Local Scope string.
 Module HelloWorld.
   (** Start the program. *)
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
-    do! Log.write "Hello world!" in
-    System.exit tt.
+    Log.write "Hello world!".
 
   (** Handle events (no event to handle). *)
   Definition handle {sig : Signature.t} (_ : Input.t) : C sig unit :=
@@ -23,7 +22,6 @@ Module HelloWorld.
 
   Check eq_refl : C.run Memory.Nil (start tt) =
     (tt, Memory.Nil, [
-      Output.System System.Output.Exit;
       Output.Log (Log.Output.Write "Hello world!")]).
 
   Definition hello_world := Extraction.run _ Memory.Nil start handle.

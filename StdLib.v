@@ -18,13 +18,6 @@ Module Log.
     C.Emit (Output.Log (Log.Output.Write message)).
 End Log.
 
-(** General system calls. *)
-Module System.
-  (** Exit the program. *)
-  Definition exit {sig : Signature.t} (_ : unit) : C sig unit :=
-    C.Emit (Output.System System.Output.Exit).
-End System.
-
 (** Read a file. *)
 Module File.
   (** Read all the content of a file. *)

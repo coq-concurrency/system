@@ -30,14 +30,6 @@ Module File.
   End Output.
 End File.
 
-(** Events for general system calls. *)
-Module System.
-  Module Output.
-    Inductive t : Set :=
-    | Exit.
-  End Output.
-End System.
-
 (** Events for the TCP client sockets. *)
 Module TCPClientSocket.
   (** Identifier for a client socket (hopefully unique). *)
@@ -106,7 +98,6 @@ Module Output.
   Inductive t : Set :=
   | Log : Log.Output.t -> t
   | File : File.Output.t -> t
-  | System : System.Output.t -> t
   | ClientSocket : TCPClientSocket.Output.t -> t
   | ServerSocket : TCPServerSocket.Output.t -> t.
 End Output.

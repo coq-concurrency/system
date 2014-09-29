@@ -88,19 +88,19 @@ End Native.
 Module Input.
   Module Command.
     Inductive t : Set :=
-    | file_read
-    | tcp_client_socket_accepted | tcp_client_socket_read
-    | tcp_server_socket_bound.
+    | FileRead
+    | ClientSocketAccepted | ClientSocketRead
+    | ServerSocketRead.
 
     Definition of_string (command : string) : option t :=
       if String.eqb command "File.Read" then
-        Some file_read
+        Some FileRead
       else if String.eqb command "TCPClientSocket.Accepted" then
-        Some tcp_client_socket_accepted
+        Some ClientSocketAccepted
       else if String.eqb command "TCPClientSocket.Read" then
-        Some tcp_client_socket_read
+        Some ClientSocketRead
       else if String.eqb command "TCPServerSocket.Bound" then
-        Some tcp_server_socket_bound
+        Some ServerSocketRead
       else
         None.
   End Command.
@@ -124,18 +124,18 @@ Module Input.
       let command := Command.of_string (Native.String.to_string command) in
       match (command, arguments) with
       | (None, _) => inr "Invalid command."
-      | (Some Command.file_read, [file_name; content]) =>
+      | (Some Command.FileRead, [file_name; content]) =>
         let file_name := Native.String.to_string (Native.Base64.decode file_name) in
         let content := Native.String.to_string (Native.Base64.decode content) in
         inl (Input.File (File.Input.Read file_name content))
-      | (Some Command.tcp_client_socket_accepted, [id]) =>
+      | (Some Command.ClientSocketAccepted, [id]) =>
         match to_nat id with
         | None => inr "Expected an integer."
         | Some id =>
           let id := TCPClientSocket.Id.New id in
           inl (Input.ClientSocket (TCPClientSocket.Input.Accepted id))
         end
-      | (Some Command.tcp_client_socket_read, [id; content]) =>
+      | (Some Command.ClientSocketRead, [id; content]) =>
         match to_nat id with
         | None => inr "Expected an integer."
         | Some id =>
@@ -143,7 +143,7 @@ Module Input.
           let content := Native.String.to_string (Native.Base64.decode content) in
           inl (Input.ClientSocket (TCPClientSocket.Input.Read id content))
         end
-      | (Some Command.tcp_server_socket_bound, [id]) =>
+      | (Some Command.ServerSocketRead, [id]) =>
         match to_nat id with
         | None => inr "Expected an integer."
         | Some id =>
@@ -175,7 +175,6 @@ Module Output.
       join (string "Log.Write") (base64 message)
     | Output.File (File.Output.Read file_name) =>
       join (string "File.Read") (base64 file_name)
-    | Output.System System.Output.Exit => string "System.Exit"
     | Output.ClientSocket (TCPClientSocket.Output.Write id message) =>
       join (string "TCPClientSocket.Write")
         (join (client_id id) (base64 message))
