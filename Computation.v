@@ -34,45 +34,45 @@ End Memory.
 (** A reference to a shared memory cell. *)
 Module Ref.
   Class C (A : Type) (sig : Signature.t) : Type := New {
-    get : Memory.t sig -> A;
-    set : Memory.t sig -> A -> Memory.t sig }.
+    read : Memory.t sig -> A;
+    write : Memory.t sig -> A -> Memory.t sig }.
 
   Instance cons_left (A : Type) (sig : Signature.t) : C A (A :: sig) := {
-    get mem := Memory.head mem;
-    set mem x := Memory.Cons x (Memory.tail mem) }.
+    read mem := Memory.head mem;
+    write mem x := Memory.Cons x (Memory.tail mem) }.
 
   Instance cons_right (A B : Type) (sig : Signature.t) (I : C A sig)
     : C A (B :: sig) := {
-    get mem := get (Memory.tail mem);
-    set mem x := Memory.Cons (Memory.head mem) (set (Memory.tail mem) x) }.
+    read mem := read (Memory.tail mem);
+    write mem x := Memory.Cons (Memory.head mem) (write (Memory.tail mem) x) }.
 End Ref.
 
 (** Definition of a computation. *)
 Module C.
   Inductive t (sig : Signature.t) (O : Type) : Type -> Type :=
-  | ret : forall (A : Type), A -> t sig O A
-  | bind : forall (A B : Type), t sig O A -> (A -> t sig O B) -> t sig O B
-  | get : forall (A : Type), `{Ref.C A sig} -> t sig O A
-  | set : forall (A : Type), `{Ref.C A sig} -> A -> t sig O unit
-  | write : O -> t sig O unit.
-  Arguments ret [sig O A] _.
-  Arguments bind [sig O A B] _ _.
-  Arguments get [sig O A] {_}.
-  Arguments set [sig O A] {_} _.
-  Arguments write [sig O] _.
+  | Ret : forall (A : Type), A -> t sig O A
+  | Bind : forall (A B : Type), t sig O A -> (A -> t sig O B) -> t sig O B
+  | Read : forall (A : Type), `{Ref.C A sig} -> t sig O A
+  | Write : forall (A : Type), `{Ref.C A sig} -> A -> t sig O unit
+  | Emit : O -> t sig O unit.
+  Arguments Ret [sig O A] _.
+  Arguments Bind [sig O A B] _ _.
+  Arguments Read [sig O A] {_}.
+  Arguments Write [sig O A] {_} _.
+  Arguments Emit [sig O] _.
 
   Fixpoint run_aux (sig : Signature.t) (O A : Type)
     (mem : Memory.t sig) (output : list O) (x : t sig O A)
     : A * Memory.t sig * list O :=
     match x with
-    | ret _ x => (x, mem, output)
-    | bind _ _ x f =>
+    | Ret _ x => (x, mem, output)
+    | Bind _ _ x f =>
       match run_aux _ _ _ mem output x with
       | (x, mem, output) => run_aux _ _ _ mem output (f x)
       end
-    | get _ _ => (Ref.get mem, mem, output)
-    | set _ _ v => (tt, Ref.set mem v, output)
-    | write v => (tt, mem, v :: output)
+    | Read _ _ => (Ref.read mem, mem, output)
+    | Write _ _ v => (tt, Ref.write mem v, output)
+    | Emit v => (tt, mem, v :: output)
     end.
 
   (** Run a computation on an initialized shared memory. *)
@@ -84,13 +84,13 @@ Module C.
 
   (** Monadic notation. *)
   Module Notations.
-    Notation "'let!' X ':=' A 'in' B" := (bind A (fun X => B))
+    Notation "'let!' X ':=' A 'in' B" := (Bind A (fun X => B))
       (at level 200, X ident, A at level 100, B at level 200).
 
-    Notation "'let!' X ':' T ':=' A 'in' B" := (bind (A := T) A (fun X => B))
+    Notation "'let!' X ':' T ':=' A 'in' B" := (Bind (A := T) A (fun X => B))
       (at level 200, X ident, A at level 100, T at level 200, B at level 200).
 
-    Notation "'do!' A 'in' B" := (bind A (fun _ => B))
+    Notation "'do!' A 'in' B" := (Bind A (fun _ => B))
       (at level 200, B at level 200).
   End Notations.
 End C.
@@ -104,7 +104,7 @@ Module List.
     (l : list A) (f : A -> C.t sig O unit)
     : C.t sig O unit :=
     match l with
-    | [] => C.ret tt
+    | [] => C.Ret tt
     | x :: l =>
       do! f x in
       iter _ _ _ l f
@@ -127,16 +127,16 @@ Module Test.
 
   Definition hello_world {sig : Signature.t} (_ : unit)
     : C.t sig (string + nat) unit :=
-    do! C.write (inl "Hello ") in
-    C.write (inl "world!").
+    do! C.Emit (inl "Hello ") in
+    C.Emit (inl "world!").
 
   Check eq_refl : run Memory.Nil (hello_world tt) =
     [inl "world!"; inl "Hello "].
 
   Definition read_and_print {sig : Signature.t} `{Ref.C nat sig}
     (_ : unit) : C.t sig (string + nat) unit :=
-    let! n : nat := C.get _ in
-    C.write (inr n).
+    let! n : nat := C.Read _ in
+    C.Emit (inr n).
 
   Check eq_refl : run (Memory.Cons 12 Memory.Nil) (read_and_print tt) =
     [inr 12].
@@ -151,16 +151,16 @@ Module Test.
 
   Definition incr_by {sig : Signature.t} `{Ref.C nat sig}
     (n : nat) : C.t sig nat unit :=
-    let! m : nat := C.get _ in
-    C.set _ (m + n).
+    let! m : nat := C.Read _ in
+    C.Write _ (m + n).
 
   Definition double_print {sig : Signature.t} `{Ref.C nat sig}
     (n : nat) : C.t sig nat unit :=
-    do! C.set _ 0 in
+    do! C.Write _ 0 in
     do! incr_by n in
     do! incr_by n in
-    let! n : nat := C.get _ in
-    C.write n.
+    let! n : nat := C.Read _ in
+    C.Emit n.
 
   Check eq_refl : run (Memory.Cons 15 Memory.Nil) (double_print 12) = [24].
 End Test.

@@ -19,12 +19,12 @@ Module HelloWorld.
 
   (** Handle events (no event to handle). *)
   Definition handle {sig : Signature.t} (_ : Input.t) : C sig unit :=
-    C.ret tt.
+    C.Ret tt.
 
   Check eq_refl : C.run Memory.Nil (start tt) =
     (tt, Memory.Nil, [
-      Output.system System.Output.exit;
-      Output.log (Log.Output.write "Hello world!")]).
+      Output.System System.Output.Exit;
+      Output.Log (Log.Output.Write "Hello world!")]).
 
   Definition hello_world := Extraction.run _ Memory.Nil start handle.
   Extraction "tests/helloWorld" hello_world.
@@ -42,16 +42,16 @@ Module ReadFile.
   (** Handle events. *)
   Definition handle {sig : Signature.t} (input : Input.t) : C sig unit :=
     match input with
-    | Input.file input =>
+    | Input.File input =>
       match input with
-      | File.Input.read _ data => Log.write data
+      | File.Input.Read _ data => Log.write data
       end
-    | _ => C.ret tt
+    | _ => C.Ret tt
     end.
 
   (** Run the program sequentially on a list of input events. *)
   Definition run (inputs : list File.Input.t) : list Output.t :=
-    let inputs := List.map Input.file inputs in
+    let inputs := List.map Input.File inputs in
     let program :=
       do! start tt in
       List.iter inputs handle in
@@ -60,10 +60,10 @@ Module ReadFile.
     end.
 
 
-  Check eq_refl : run [] = [Output.file (File.Output.read resolv)].
-  Check eq_refl : run [File.Input.read resolv "nameserver 34.123.45.46"] = [
-    Output.log (Log.Output.write "nameserver 34.123.45.46");
-    Output.file (File.Output.read resolv)].
+  Check eq_refl : run [] = [Output.File (File.Output.Read resolv)].
+  Check eq_refl : run [File.Input.Read resolv "nameserver 34.123.45.46"] = [
+    Output.Log (Log.Output.Write "nameserver 34.123.45.46");
+    Output.File (File.Output.Read resolv)].
 
   Definition read_file := Extraction.run _ Memory.Nil start handle.
   Extraction "tests/readFile" read_file.
@@ -80,19 +80,19 @@ Module EchoServer.
   (** Handle events. *)
   Definition handle {sig : Signature.t} (input : Input.t) : C sig unit :=
     match input with
-    | Input.server_socket input =>
+    | Input.ServerSocket input =>
       match input with
-      | TCPServerSocket.Input.bound _ => Log.write "Server socket opened."
+      | TCPServerSocket.Input.Bound _ => Log.write "Server socket opened."
       end
-    | Input.client_socket input =>
+    | Input.ClientSocket input =>
       match input with
-      | TCPClientSocket.Input.accepted _ =>
+      | TCPClientSocket.Input.Accepted _ =>
         Log.write "Client connection accepted."
-      | TCPClientSocket.Input.read id data =>
+      | TCPClientSocket.Input.Read id data =>
         do! Log.write ("Input: " ++ data) in
         TCPClientSocket.write id data
       end
-    | _ => C.ret tt
+    | _ => C.Ret tt
     end.
 
   (** Run the program sequentially on a list of input events. *)
@@ -105,20 +105,20 @@ Module EchoServer.
     end.
 
   Check eq_refl : run [] = [
-    Output.server_socket (TCPServerSocket.Output.bind port)].
+    Output.ServerSocket (TCPServerSocket.Output.Bind port)].
   Check eq_refl : run [
-    Input.server_socket (TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12))] = [
-    Output.log (Log.Output.write "Server socket opened.");
-    Output.server_socket (TCPServerSocket.Output.bind port)].
+    Input.ServerSocket (TCPServerSocket.Input.Bound (TCPServerSocket.Id.New 12))] = [
+    Output.Log (Log.Output.Write "Server socket opened.");
+    Output.ServerSocket (TCPServerSocket.Output.Bind port)].
   Check eq_refl : run [
-    Input.server_socket (TCPServerSocket.Input.bound (TCPServerSocket.Id.new 12));
-    Input.client_socket (TCPClientSocket.Input.accepted (TCPClientSocket.Id.new 23));
-    Input.client_socket (TCPClientSocket.Input.read (TCPClientSocket.Id.new 23) "hi")] = [
-    Output.client_socket (TCPClientSocket.Output.write (TCPClientSocket.Id.new 23) "hi");
-    Output.log (Log.Output.write "Input: hi");
-    Output.log (Log.Output.write "Client connection accepted.");
-    Output.log (Log.Output.write "Server socket opened.");
-    Output.server_socket (TCPServerSocket.Output.bind port)].
+    Input.ServerSocket (TCPServerSocket.Input.Bound (TCPServerSocket.Id.New 12));
+    Input.ClientSocket (TCPClientSocket.Input.Accepted (TCPClientSocket.Id.New 23));
+    Input.ClientSocket (TCPClientSocket.Input.Read (TCPClientSocket.Id.New 23) "hi")] = [
+    Output.ClientSocket (TCPClientSocket.Output.Write (TCPClientSocket.Id.New 23) "hi");
+    Output.Log (Log.Output.Write "Input: hi");
+    Output.Log (Log.Output.Write "Client connection accepted.");
+    Output.Log (Log.Output.Write "Server socket opened.");
+    Output.ServerSocket (TCPServerSocket.Output.Bind port)].
 
   Definition echo_server := Extraction.run _ Memory.Nil start handle.
   Extraction "tests/echoServer" echo_server.

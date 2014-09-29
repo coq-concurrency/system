@@ -93,13 +93,13 @@ Module Input.
     | tcp_server_socket_bound.
 
     Definition of_string (command : string) : option t :=
-      if String.eqb command "File.read" then
+      if String.eqb command "File.Read" then
         Some file_read
-      else if String.eqb command "TCPClientSocket.accepted" then
+      else if String.eqb command "TCPClientSocket.Accepted" then
         Some tcp_client_socket_accepted
-      else if String.eqb command "TCPClientSocket.read" then
+      else if String.eqb command "TCPClientSocket.Read" then
         Some tcp_client_socket_read
-      else if String.eqb command "TCPServerSocket.bound" then
+      else if String.eqb command "TCPServerSocket.Bound" then
         Some tcp_server_socket_bound
       else
         None.
@@ -109,7 +109,7 @@ Module Input.
     : Input.t :=
     let file_name := Native.String.to_string (Native.Base64.decode file_name) in
     let content := Native.String.to_string (Native.Base64.decode content) in
-    Input.file (File.Input.read file_name content).
+    Input.File (File.Input.Read file_name content).
 
   Definition to_nat (n : Native.String.t) : option nat :=
     match Native.String.to_int n with
@@ -127,28 +127,28 @@ Module Input.
       | (Some Command.file_read, [file_name; content]) =>
         let file_name := Native.String.to_string (Native.Base64.decode file_name) in
         let content := Native.String.to_string (Native.Base64.decode content) in
-        inl (Input.file (File.Input.read file_name content))
+        inl (Input.File (File.Input.Read file_name content))
       | (Some Command.tcp_client_socket_accepted, [id]) =>
         match to_nat id with
         | None => inr "Expected an integer."
         | Some id =>
-          let id := TCPClientSocket.Id.new id in
-          inl (Input.client_socket (TCPClientSocket.Input.accepted id))
+          let id := TCPClientSocket.Id.New id in
+          inl (Input.ClientSocket (TCPClientSocket.Input.Accepted id))
         end
       | (Some Command.tcp_client_socket_read, [id; content]) =>
         match to_nat id with
         | None => inr "Expected an integer."
         | Some id =>
-          let id := TCPClientSocket.Id.new id in
+          let id := TCPClientSocket.Id.New id in
           let content := Native.String.to_string (Native.Base64.decode content) in
-          inl (Input.client_socket (TCPClientSocket.Input.read id content))
+          inl (Input.ClientSocket (TCPClientSocket.Input.Read id content))
         end
       | (Some Command.tcp_server_socket_bound, [id]) =>
         match to_nat id with
         | None => inr "Expected an integer."
         | Some id =>
-          let id := TCPServerSocket.Id.new id in
-          inl (Input.server_socket (TCPServerSocket.Input.bound id))
+          let id := TCPServerSocket.Id.New id in
+          inl (Input.ServerSocket (TCPServerSocket.Input.Bound id))
         end
       | (Some _, _) => inr "Wrong number of arguments."
       end
@@ -167,25 +167,25 @@ Module Output.
     let string s := Native.String.of_string s in
     let base64 s := Native.Base64.encode (Native.String.of_string s) in
     let client_id id :=
-      of_nat (match id with TCPClientSocket.Id.new id => id end) in
+      of_nat (match id with TCPClientSocket.Id.New id => id end) in
     let server_id id :=
-      of_nat (match id with TCPServerSocket.Id.new id => id end) in
+      of_nat (match id with TCPServerSocket.Id.New id => id end) in
     match output with
-    | Output.log (Log.Output.write message) =>
-      join (string "Log.write") (base64 message)
-    | Output.file (File.Output.read file_name) =>
-      join (string "File.read") (base64 file_name)
-    | Output.system System.Output.exit => string "System.exit"
-    | Output.client_socket (TCPClientSocket.Output.write id message) =>
-      join (string "TCPClientSocket.write")
+    | Output.Log (Log.Output.Write message) =>
+      join (string "Log.Write") (base64 message)
+    | Output.File (File.Output.Read file_name) =>
+      join (string "File.Read") (base64 file_name)
+    | Output.System System.Output.Exit => string "System.Exit"
+    | Output.ClientSocket (TCPClientSocket.Output.Write id message) =>
+      join (string "TCPClientSocket.Write")
         (join (client_id id) (base64 message))
-    | Output.client_socket (TCPClientSocket.Output.close id) =>
-      join (string "TCPClientSocket.close") (client_id id)
-    | Output.server_socket (TCPServerSocket.Output.bind port) =>
+    | Output.ClientSocket (TCPClientSocket.Output.Close id) =>
+      join (string "TCPClientSocket.Close") (client_id id)
+    | Output.ServerSocket (TCPServerSocket.Output.Bind port) =>
       let port := of_nat port in
-      join (string "TCPServerSocket.bind") port
-    | Output.server_socket (TCPServerSocket.Output.close id) =>
-      join (string "TCPServerSocket.close") (server_id id)
+      join (string "TCPServerSocket.Bind") port
+    | Output.ServerSocket (TCPServerSocket.Output.Close id) =>
+      join (string "TCPServerSocket.Close") (server_id id)
     end.
 End Output.
 

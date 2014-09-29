@@ -98,21 +98,21 @@ Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
 Definition handle_server_sockets {sig : Signature.t}
   (input : TCPServerSocket.Input.t) : C sig unit :=
   match input with
-  | TCPServerSocket.Input.bound _ => Log.write "Server socket opened."
+  | TCPServerSocket.Input.Bound _ => Log.write "Server socket opened."
   end.
 
 (** Handle client sockets. *)
 Definition handle_client_sockets {sig : Signature.t} `{Ref.C Clients.t sig}
   (input : TCPClientSocket.Input.t) : C sig unit :=
   match input with
-  | TCPClientSocket.Input.accepted _ =>
+  | TCPClientSocket.Input.Accepted _ =>
     Log.write "Client connection accepted."
-  | TCPClientSocket.Input.read client request =>
+  | TCPClientSocket.Input.Read client request =>
     match parse request with
     | None => Log.write ("Invalid request: " ++ request)
     | Some (Method.get, url) =>
-      let! clients := C.get _ in
-      do! C.set _ (Clients.add clients client url) in
+      let! clients := C.Read _ in
+      do! C.Write _ (Clients.add clients client url) in
       do! Log.write ("File " ++ url ++ " requested.") in
       File.read url
     end
@@ -128,11 +128,11 @@ Content-Type: text/plain
 Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
   (input : File.Input.t) : C sig unit :=
   match input with
-  | File.Input.read file_name data =>
-    let! clients := C.get _ in
+  | File.Input.Read file_name data =>
+    let! clients := C.Read _ in
     match Clients.find clients file_name with
     | Some client =>
-      do! C.set _ (Clients.remove clients client) in
+      do! C.Write _ (Clients.remove clients client) in
       TCPClientSocket.write client (http_answer data)
     | None => Log.write ("No client to receive the file " ++ file_name)
     end
@@ -142,9 +142,9 @@ Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
 Definition handle {sig : Signature.t} `{Ref.C Clients.t sig} (input : Input.t)
   : C sig unit :=
   match input with
-  | Input.client_socket input => handle_client_sockets input
-  | Input.server_socket input => handle_server_sockets input
-  | Input.file input => handle_files input
+  | Input.ClientSocket input => handle_client_sockets input
+  | Input.ServerSocket input => handle_server_sockets input
+  | Input.File input => handle_files input
   end.
 
 (** Some tests *)
@@ -159,9 +159,9 @@ Module Test.
     end.
 
   Check eq_refl : run [] = [
-    Output.server_socket (TCPServerSocket.Output.bind 80)].
+    Output.ServerSocket (TCPServerSocket.Output.Bind 80)].
 
-  Definition client := TCPClientSocket.Id.new 12.
+  Definition client := TCPClientSocket.Id.New 12.
   Definition request :=
     "GET info/contact.html HTTP/1.0
 Host: example.com
@@ -169,19 +169,19 @@ Referer: http://example.com/
 User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
 
   Check eq_refl : run [
-    Input.client_socket (TCPClientSocket.Input.accepted client);
-    Input.client_socket (TCPClientSocket.Input.read client "wrong request")] = [
-    Output.log (Log.Output.write "Invalid request: wrong request");
-    Output.log (Log.Output.write "Client connection accepted.");
-    Output.server_socket (TCPServerSocket.Output.bind 80)].
+    Input.ClientSocket (TCPClientSocket.Input.Accepted client);
+    Input.ClientSocket (TCPClientSocket.Input.Read client "wrong request")] = [
+    Output.Log (Log.Output.Write "Invalid request: wrong request");
+    Output.Log (Log.Output.Write "Client connection accepted.");
+    Output.ServerSocket (TCPServerSocket.Output.Bind 80)].
 
   Check eq_refl : run [
-    Input.client_socket (TCPClientSocket.Input.accepted client);
-    Input.client_socket (TCPClientSocket.Input.read client request)] = [
-    Output.file (File.Output.read "info/contact.html");
-    Output.log (Log.Output.write "File info/contact.html requested.");
-    Output.log (Log.Output.write "Client connection accepted.");
-    Output.server_socket (TCPServerSocket.Output.bind 80)].
+    Input.ClientSocket (TCPClientSocket.Input.Accepted client);
+    Input.ClientSocket (TCPClientSocket.Input.Read client request)] = [
+    Output.File (File.Output.Read "info/contact.html");
+    Output.Log (Log.Output.Write "File info/contact.html requested.");
+    Output.Log (Log.Output.Write "Client connection accepted.");
+    Output.ServerSocket (TCPServerSocket.Output.Bind 80)].
 End Test.
 
 (** Extraction. *)
