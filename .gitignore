@@ -1,4 +1,5 @@
 Makefile
+tests/
 *.bak
 *.vo
 *.glob
