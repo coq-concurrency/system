@@ -1,8 +1,9 @@
 (** Extraction of computations to OCaml. *)
 Require Import Coq.Lists.List.
+Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.String.
 Require Import ExtrOcamlBasic.
-Require Import ExtrOcamlIntConv.
+Require Import ExtrOcamlBigIntConv.
 Require Import ExtrOcamlString.
 Require Import Computation.
 Require Import Pervasives.
@@ -35,20 +36,16 @@ Module Native.
     Extract Constant of_string => "fun s ->
       List.fold_right (fun c s -> String.make 1 c ^ s) s """"".
 
-    Parameter to_int : t -> option int.
-    Extract Constant to_int => "fun s ->
-      try Some (int_of_string s)
-      with Failure ""int_of_string"" -> None".
-
-    Parameter of_int : int -> t.
-    Extract Constant of_int => "string_of_int".
-
     Parameter append : t -> t -> t.
     Extract Constant append => "fun s1 s2 -> s1 ^ s2".
 
     Parameter tokenize : t -> list t.
     Extract Constant tokenize => "fun s ->
       Str.split (Str.regexp_string "" "") s".
+
+    Parameter is_empty : t -> bool.
+    Extract Constant is_empty => "fun s ->
+      String.length s = 0".
   End String.
 
   Module Base64.
@@ -83,6 +80,22 @@ Module Native.
       aux state".
   End Process.
 
+  Module BigInt.
+    Definition t : Type := bigint.
+
+    Parameter to_string : t -> String.t.
+    Extract Constant to_string => "Big_int.string_of_big_int".
+
+    Parameter of_string : String.t -> option t.
+    Extract Constant of_string => "fun n ->
+      match Bit_int.big_int_of_string n with
+      | s -> Some s
+      | exception _ -> None".
+
+    Definition to_N : t -> N := n_of_bigint.
+    Definition of_N : N -> t := bigint_of_n.
+  End BigInt.
+
   Parameter print_error : String.t -> unit.
   Extract Constant print_error => "fun message ->
     prerr_endline message;
@@ -91,72 +104,69 @@ End Native.
 
 (** Import input events. *)
 Module Input.
-  Module Command.
-    Inductive t : Set :=
-    | FileRead
-    | ClientSocketAccepted | ClientSocketRead
-    | ServerSocketRead.
+  Definition import_command (command : Native.String.t) : option Command.t :=
+    let command := Native.String.to_string command in
+    if String.eqb command "Log" then
+      Some Command.Log
+    else if String.eqb command "FileRead" then
+      Some Command.FileRead
+    else if String.eqb command "ServerSocketBind" then
+      Some Command.ServerSocketBind
+    else if String.eqb command "ClientSocketRead" then
+      Some Command.ClientSocketRead
+    else if String.eqb command "ClientSocketWrite" then
+      Some Command.ClientSocketWrite
+    else
+      None.
+  
+  Definition import_bool (b : Native.String.t) : option bool :=
+    let b := Native.String.to_string b in
+    if String.eqb b "false" then
+      Some false
+    else if String.eqb b "true" then
+      Some true
+    else
+      None.
 
-    Definition of_string (command : string) : option t :=
-      if String.eqb command "File.Read" then
-        Some FileRead
-      else if String.eqb command "TCPClientSocket.Accepted" then
-        Some ClientSocketAccepted
-      else if String.eqb command "TCPClientSocket.Read" then
-        Some ClientSocketRead
-      else if String.eqb command "TCPServerSocket.Bound" then
-        Some ServerSocketRead
-      else
-        None.
-  End Command.
+  Definition import_N (n : Native.String.t) : option N :=
+    option_map Native.BigInt.to_N (Native.BigInt.of_string n).
 
-  Definition import_file_read (file_name : Native.String.t) (content : Native.String.t)
-    : Input.t :=
-    let file_name := Native.String.to_string (Native.Base64.decode file_name) in
-    let content := Native.String.to_string (Native.Base64.decode content) in
-    Input.File (File.Input.Read file_name content).
+  Definition import_string (s : Native.String.t) : string :=
+    Native.String.to_string (Native.Base64.decode s).
 
-  Definition to_nat (n : Native.String.t) : option nat :=
-    match Native.String.to_int n with
-    | None => None
-    | Some n => Some (nat_of_int n)
-    end.
+  Definition import_option (s : Native.String.t) : option Native.String.t :=
+    if Native.String.is_empty s then
+      None
+    else
+      Some s.
 
   Definition import (input : Native.String.t) : Input.t + string :=
     match Native.String.tokenize input with
-    | [] => inr "The input cannot be empty."
-    | command :: arguments =>
-      let command := Command.of_string (Native.String.to_string command) in
-      match (command, arguments) with
-      | (None, _) => inr "Invalid command."
-      | (Some Command.FileRead, [file_name; content]) =>
-        let file_name := Native.String.to_string (Native.Base64.decode file_name) in
-        let content := Native.String.to_string (Native.Base64.decode content) in
-        inl (Input.File (File.Input.Read file_name content))
-      | (Some Command.ClientSocketAccepted, [id]) =>
-        match to_nat id with
-        | None => inr "Expected an integer."
-        | Some id =>
-          let id := TCPClientSocket.Id.New id in
-          inl (Input.ClientSocket (TCPClientSocket.Input.Accepted id))
+    | command :: id :: arguments =>
+      match (import_command command, import_N id) with
+      | (None, _) => inr "Unknown command."
+      | (_, None) => inr "Invalid id."
+      | (Some command, Some id) =>
+        match (command, arguments) with
+        | (Command.Log, [is_success]) =>
+          match import_bool is_success with
+          | None => inr "Invalid boolean."
+          | Some is_success => inl (Input.New Command.Log id is_success)
+          end
+        | (Command.FileRead, [content]) =>
+          let content := option_map import_string (import_option content) in
+          inl (Input.New Command.FileRead id content)
+        | (Command.ServerSocketBind, [client_id]) =>
+          let client_id := option_map ClientSocketId.New
+            (match import_option client_id with
+            | None => None
+            | Some client_id => import_N client_id
+            end) in
+          inl (Input.New Command.ServerSocketBind id client_id)
+        | _ => inr "Wrong number of arguments."
         end
-      | (Some Command.ClientSocketRead, [id; content]) =>
-        match to_nat id with
-        | None => inr "Expected an integer."
-        | Some id =>
-          let id := TCPClientSocket.Id.New id in
-          let content := Native.String.to_string (Native.Base64.decode content) in
-          inl (Input.ClientSocket (TCPClientSocket.Input.Read id content))
-        end
-      | (Some Command.ServerSocketRead, [id]) =>
-        match to_nat id with
-        | None => inr "Expected an integer."
-        | Some id =>
-          let id := TCPServerSocket.Id.New id in
-          inl (Input.ServerSocket (TCPServerSocket.Input.Bound id))
-        end
-      | (Some _, _) => inr "Wrong number of arguments."
       end
+    | _ => inr "The input must have at least two elements."
     end.
 End Input.
 

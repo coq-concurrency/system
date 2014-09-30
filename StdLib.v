@@ -11,6 +11,7 @@ Import C.Notations.
 Definition C (sig : Signature.t) (A : Type) : Type :=
   C.t sig Output.t A.
 
+(*
 (** Log data. *)
 Module Log.
   (** Log a message on the standard output. *)
@@ -49,3 +50,4 @@ Module TCPServerSocket.
     : C sig unit :=
     C.Send (Output.ServerSocket (TCPServerSocket.Output.Close id)).
 End TCPServerSocket.
+*)
