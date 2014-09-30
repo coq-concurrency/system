@@ -55,13 +55,13 @@ Module C.
   | Read : forall (A : Type), `{Ref.C A sig} -> t sig O A
   | Write : forall (A : Type), `{Ref.C A sig} -> A -> t sig O unit
   | Send : O -> t sig O unit
-  | Exit : t sig O unit.
+  | Exit : unit -> t sig O unit.
   Arguments Ret [sig O A] _.
   Arguments Bind [sig O A B] _ _.
   Arguments Read [sig O A] {_}.
   Arguments Write [sig O A] {_} _.
   Arguments Send [sig O] _.
-  Arguments Exit [sig O].
+  Arguments Exit [sig O] _.
 
   Fixpoint run_aux (sig : Signature.t) (O A : Type)
     (mem : Memory.t sig) (output : list O) (x : t sig O A)
@@ -76,7 +76,7 @@ Module C.
     | Read _ _ => (Some (Ref.read mem), mem, output)
     | Write _ _ v => (Some tt, Ref.write mem v, output)
     | Send v => (Some tt, mem, v :: output)
-    | Exit => (None, mem, output)
+    | Exit _ => (None, mem, output)
     end.
 
   (** Run a computation on an initialized shared memory. *)

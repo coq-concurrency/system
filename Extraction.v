@@ -12,6 +12,7 @@ Import ListNotations.
 Open Local Scope string.
 
 Module Native.
+  (** Sequence two instructions. *)
   Parameter seq : forall A, (unit -> unit) -> (unit -> A) -> A.
   Arguments seq [A] _ _.
   Extract Constant seq => "fun f g ->
@@ -70,11 +71,15 @@ Module Native.
       output_string output (message ^ ""\n"");
       flush output".
 
-    Parameter fold_lines : forall A, t -> A -> (A -> String.t -> A) -> unit.
+    Parameter fold_lines : forall A, t -> A -> (A -> String.t -> option A) -> unit.
     Extract Constant fold_lines => "fun (input, _) state f ->
       let rec aux state =
-        try aux (f state (input_line input))
-        with End_of_file -> () in
+        match input_line input with
+        | line ->
+          (match f state line with
+          | None -> ()
+          | Some state -> aux state)
+        | exception End_of_file -> () in
       aux state".
   End Process.
 
@@ -190,28 +195,41 @@ End Output.
 
 Definition run (sig : Signature.t) (mem : Memory.t sig)
   (start : unit -> C sig unit) (handle : Input.t -> C sig unit) : unit :=
-  let last triple :=
-    match triple with
-    | (x, y, z) => (y, z)
-    end in
   let system := Native.Process.run (Native.String.of_string "./systemProxy.native") in
   let fix print_outputs outputs :=
     match outputs with
     | [] => tt
     | output :: outputs =>
-      Native.seq (fun _ => Native.Process.print_line (Output.export output) system)
+      Native.seq
+        (fun _ => Native.Process.print_line (Output.export output) system)
         (fun _ => print_outputs outputs)
     end in
-  let (mem, outputs) := last (C.run mem (start tt)) in
-  Native.seq (fun _ => print_outputs outputs)
-    (fun _ => Native.Process.fold_lines _ system mem (fun mem input =>
-      match Input.import input with
-      | inl input =>
-        let (mem, outputs) := last (C.run mem (handle input)) in
-        Native.seq (fun _ => print_outputs outputs) (fun _ => mem)
-      | inr error_message =>
-        let error_message := "Input ignored: " ++ error_message in
-        Native.seq
-          (fun _ => Native.print_error (Native.String.of_string error_message))
-          (fun _ => mem)
-      end)).
+  match C.run mem (start tt) with
+  | (result, mem, outputs) =>
+    Native.seq
+      (fun _ => print_outputs outputs)
+      (fun _ =>
+        match result with
+        | None => tt
+        | Some _ =>
+          Native.Process.fold_lines _ system mem (fun mem input =>
+          match Input.import input with
+          | inl input =>
+            match C.run mem (handle input) with
+            | (result, mem, outputs) =>
+              Native.seq
+                (fun _ => print_outputs outputs)
+                (fun _ =>
+                  match result with
+                  | None => None
+                  | Some _ => Some mem
+                  end)
+            end
+          | inr error_message =>
+            let error_message := "Input ignored: " ++ error_message in
+            Native.seq
+              (fun _ => Native.print_error (Native.String.of_string error_message))
+              (fun _ => None)
+          end)
+        end)
+  end.

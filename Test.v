@@ -10,7 +10,24 @@ Import ListNotations.
 Import C.Notations.
 Open Local Scope string.
 
-(** Says hello. *)
+(** Do nothing. *)
+Module DoNothing.
+  (** Start the program. *)
+  Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
+    C.Exit tt.
+
+  (** Handle events (no event to handle). *)
+  Definition handle {sig : Signature.t} (_ : Input.t) : C sig unit :=
+    C.Ret tt.
+
+  Check eq_refl : C.run Memory.Nil (start tt) =
+    (None, Memory.Nil, []).
+
+  Definition do_nothing := Extraction.run _ Memory.Nil start handle.
+  Extraction "tests/doNothing" do_nothing.
+End DoNothing.
+
+(** Say hello. *)
 Module HelloWorld.
   (** Start the program. *)
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
@@ -28,7 +45,7 @@ Module HelloWorld.
   Extraction "tests/helloWorld" hello_world.
 End HelloWorld.
 
-(** Prints the content of a file. *)
+(** Print the content of a file. *)
 Module ReadFile.
   (** The file to open. *)
   Definition resolv : string := "README.md".
