@@ -88,7 +88,7 @@ Module Native.
 
     Parameter of_string : String.t -> option t.
     Extract Constant of_string => "fun n ->
-      match Bit_int.big_int_of_string n with
+      match Big_int.big_int_of_string n with
       | s -> Some s
       | exception _ -> None".
 
@@ -157,12 +157,24 @@ Module Input.
           let content := option_map import_string (import_option content) in
           inl (Input.New Command.FileRead id content)
         | (Command.ServerSocketBind, [client_id]) =>
-          let client_id := option_map ClientSocketId.New
-            (match import_option client_id with
-            | None => None
-            | Some client_id => import_N client_id
-            end) in
-          inl (Input.New Command.ServerSocketBind id client_id)
+          match import_option client_id with
+          | None => inl (Input.New Command.ServerSocketBind id None)
+          | Some client_id =>
+            match import_N client_id with
+            | None => inr "Invalid client_id."
+            | Some client_id =>
+              let client_id := ClientSocketId.New client_id in
+              inl (Input.New Command.ServerSocketBind id (Some client_id))
+            end
+          end
+        | (Command.ClientSocketRead, [content]) =>
+          let content := option_map import_string (import_option content) in
+          inl (Input.New Command.ClientSocketRead id content)
+        | (Command.ClientSocketWrite, [is_success]) =>
+          match import_bool is_success with
+          | None => inr "Invalid boolean."
+          | Some is_success => inl (Input.New Command.Log id is_success)
+          end
         | _ => inr "Wrong number of arguments."
         end
       end
@@ -172,34 +184,42 @@ End Input.
 
 (** Export output events. *)
 Module Output.
+  (** Concatenate with a space in between. *)
   Definition join (s1 s2 : Native.String.t) : Native.String.t :=
     Native.String.append (Native.String.append s1 (Native.String.of_string " ")) s2.
 
-  Definition of_nat (n : nat) : Native.String.t :=
-    Native.String.of_int (int_of_nat n).
+  Definition export_bool (b : bool) : Native.String.t :=
+    if b then
+      Native.String.of_string "true"
+    else
+      Native.String.of_string "false".
+
+  Definition export_N (n : N) : Native.String.t :=
+    Native.BigInt.to_string (Native.BigInt.of_N n).
+
+  Definition export_client_id (client_id : ClientSocketId.t) : Native.String.t :=
+    match client_id with
+    | ClientSocketId.New client_id => export_N client_id
+    end.
+
+  Definition export_string (s : string) : Native.String.t :=
+    Native.Base64.encode (Native.String.of_string s).
 
   Definition export (output : Output.t) : Native.String.t :=
-    let string s := Native.String.of_string s in
-    let base64 s := Native.Base64.encode (Native.String.of_string s) in
-    let client_id id :=
-      of_nat (match id with TCPClientSocket.Id.New id => id end) in
-    let server_id id :=
-      of_nat (match id with TCPServerSocket.Id.New id => id end) in
+    let id := export_N (Output.id output) in
     match output with
-    | Output.Log (Log.Output.Write message) =>
-      join (string "Log.Write") (base64 message)
-    | Output.File (File.Output.Read file_name) =>
-      join (string "File.Read") (base64 file_name)
-    | Output.ClientSocket (TCPClientSocket.Output.Write id message) =>
-      join (string "TCPClientSocket.Write")
-        (join (client_id id) (base64 message))
-    | Output.ClientSocket (TCPClientSocket.Output.Close id) =>
-      join (string "TCPClientSocket.Close") (client_id id)
-    | Output.ServerSocket (TCPServerSocket.Output.Bind port) =>
-      let port := of_nat port in
-      join (string "TCPServerSocket.Bind") port
-    | Output.ServerSocket (TCPServerSocket.Output.Close id) =>
-      join (string "TCPServerSocket.Close") (server_id id)
+    | Output.New Command.Log _ message =>
+      let message := export_string message in
+      join (Native.String.of_string "Log") message
+    | Output.New Command.FileRead _ file_name =>
+      join (Native.String.of_string "FileRead") (export_string file_name)
+    | Output.New Command.ServerSocketBind _ port =>
+      join (Native.String.of_string "ServerSocketBind") (export_N port)
+    | Output.New Command.ClientSocketRead _ client_id =>
+      join (Native.String.of_string "ClientSocketRead") (export_client_id client_id)
+    | Output.New Command.ClientSocketWrite _ (client_id, content) =>
+      join (Native.String.of_string "ClientSocketWrite")
+        (join (export_client_id client_id) (export_string content))
     end.
 End Output.
 
