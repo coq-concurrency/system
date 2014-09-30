@@ -21,7 +21,7 @@ Module HelloWorld.
     C.Ret tt.
 
   Check eq_refl : C.run Memory.Nil (start tt) =
-    (tt, Memory.Nil, [
+    (Some tt, Memory.Nil, [
       Output.Log (Log.Output.Write "Hello world!")]).
 
   Definition hello_world := Extraction.run _ Memory.Nil start handle.

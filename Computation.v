@@ -54,31 +54,35 @@ Module C.
   | Bind : forall (A B : Type), t sig O A -> (A -> t sig O B) -> t sig O B
   | Read : forall (A : Type), `{Ref.C A sig} -> t sig O A
   | Write : forall (A : Type), `{Ref.C A sig} -> A -> t sig O unit
-  | Send : O -> t sig O unit.
+  | Send : O -> t sig O unit
+  | Exit : t sig O unit.
   Arguments Ret [sig O A] _.
   Arguments Bind [sig O A B] _ _.
   Arguments Read [sig O A] {_}.
   Arguments Write [sig O A] {_} _.
   Arguments Send [sig O] _.
+  Arguments Exit [sig O].
 
   Fixpoint run_aux (sig : Signature.t) (O A : Type)
     (mem : Memory.t sig) (output : list O) (x : t sig O A)
-    : A * Memory.t sig * list O :=
+    : option A * Memory.t sig * list O :=
     match x with
-    | Ret _ x => (x, mem, output)
+    | Ret _ x => (Some x, mem, output)
     | Bind _ _ x f =>
       match run_aux _ _ _ mem output x with
-      | (x, mem, output) => run_aux _ _ _ mem output (f x)
+      | (Some x, mem, output) => run_aux _ _ _ mem output (f x)
+      | (None, mem, output) => (None, mem, output)
       end
-    | Read _ _ => (Ref.read mem, mem, output)
-    | Write _ _ v => (tt, Ref.write mem v, output)
-    | Send v => (tt, mem, v :: output)
+    | Read _ _ => (Some (Ref.read mem), mem, output)
+    | Write _ _ v => (Some tt, Ref.write mem v, output)
+    | Send v => (Some tt, mem, v :: output)
+    | Exit => (None, mem, output)
     end.
 
   (** Run a computation on an initialized shared memory. *)
   Definition run (sig : Signature.t) (O A : Type)
     (mem : Memory.t sig) (x : t sig O A)
-    : A * Memory.t sig * list O :=
+    : option A * Memory.t sig * list O :=
     run_aux _ _ _ mem [] x.
   Arguments run [sig O A] _ _.
 
