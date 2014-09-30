@@ -54,12 +54,12 @@ Module C.
   | Bind : forall (A B : Type), t sig O A -> (A -> t sig O B) -> t sig O B
   | Read : forall (A : Type), `{Ref.C A sig} -> t sig O A
   | Write : forall (A : Type), `{Ref.C A sig} -> A -> t sig O unit
-  | Emit : O -> t sig O unit.
+  | Send : O -> t sig O unit.
   Arguments Ret [sig O A] _.
   Arguments Bind [sig O A B] _ _.
   Arguments Read [sig O A] {_}.
   Arguments Write [sig O A] {_} _.
-  Arguments Emit [sig O] _.
+  Arguments Send [sig O] _.
 
   Fixpoint run_aux (sig : Signature.t) (O A : Type)
     (mem : Memory.t sig) (output : list O) (x : t sig O A)
@@ -72,7 +72,7 @@ Module C.
       end
     | Read _ _ => (Ref.read mem, mem, output)
     | Write _ _ v => (tt, Ref.write mem v, output)
-    | Emit v => (tt, mem, v :: output)
+    | Send v => (tt, mem, v :: output)
     end.
 
   (** Run a computation on an initialized shared memory. *)
@@ -127,8 +127,8 @@ Module Test.
 
   Definition hello_world {sig : Signature.t} (_ : unit)
     : C.t sig (string + nat) unit :=
-    do! C.Emit (inl "Hello ") in
-    C.Emit (inl "world!").
+    do! C.Send (inl "Hello ") in
+    C.Send (inl "world!").
 
   Check eq_refl : run Memory.Nil (hello_world tt) =
     [inl "world!"; inl "Hello "].
@@ -136,7 +136,7 @@ Module Test.
   Definition read_and_print {sig : Signature.t} `{Ref.C nat sig}
     (_ : unit) : C.t sig (string + nat) unit :=
     let! n : nat := C.Read _ in
-    C.Emit (inr n).
+    C.Send (inr n).
 
   Check eq_refl : run (Memory.Cons 12 Memory.Nil) (read_and_print tt) =
     [inr 12].
@@ -160,7 +160,7 @@ Module Test.
     do! incr_by n in
     do! incr_by n in
     let! n : nat := C.Read _ in
-    C.Emit n.
+    C.Send n.
 
   Check eq_refl : run (Memory.Cons 15 Memory.Nil) (double_print 12) = [24].
 End Test.

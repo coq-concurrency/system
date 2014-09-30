@@ -15,14 +15,14 @@ Definition C (sig : Signature.t) (A : Type) : Type :=
 Module Log.
   (** Log a message on the standard output. *)
   Definition write {sig : Signature.t} (message : string) : C sig unit :=
-    C.Emit (Output.Log (Log.Output.Write message)).
+    C.Send (Output.Log (Log.Output.Write message)).
 End Log.
 
 (** Read a file. *)
 Module File.
   (** Read all the content of a file. *)
   Definition read {sig : Signature.t} (file_name : string) : C sig unit :=
-    C.Emit (Output.File (File.Output.Read file_name)).
+    C.Send (Output.File (File.Output.Read file_name)).
 End File.
 
 (** TCP client socket. *)
@@ -30,22 +30,22 @@ Module TCPClientSocket.
   (** Write a message. *)
   Definition write {sig : Signature.t} (id : TCPClientSocket.Id.t)
     (data : string) : C sig unit :=
-    C.Emit (Output.ClientSocket (TCPClientSocket.Output.Write id data)).
+    C.Send (Output.ClientSocket (TCPClientSocket.Output.Write id data)).
 
   (** Close a socket. *)
   Definition close {sig : Signature.t} (id : TCPClientSocket.Id.t)
     : C sig unit :=
-    C.Emit (Output.ClientSocket (TCPClientSocket.Output.Close id)).
+    C.Send (Output.ClientSocket (TCPClientSocket.Output.Close id)).
 End TCPClientSocket.
 
 (** TCP server socket. *)
 Module TCPServerSocket.
   (** Bind a socket. *)
   Definition bind {sig : Signature.t} (port : nat) : C sig unit :=
-    C.Emit (Output.ServerSocket (TCPServerSocket.Output.Bind port)).
+    C.Send (Output.ServerSocket (TCPServerSocket.Output.Bind port)).
 
   (** Close a socket. *)
   Definition close {sig : Signature.t} (id : TCPServerSocket.Id.t)
     : C sig unit :=
-    C.Emit (Output.ServerSocket (TCPServerSocket.Output.Close id)).
+    C.Send (Output.ServerSocket (TCPServerSocket.Output.Close id)).
 End TCPServerSocket.
