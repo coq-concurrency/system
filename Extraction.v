@@ -207,18 +207,20 @@ Module Output.
 
   Definition export (output : Output.t) : Native.String.t :=
     let id := export_N (Output.id output) in
+    let start (s : string) :=
+      join (Native.String.of_string s) id in
     match output with
     | Output.New Command.Log _ message =>
       let message := export_string message in
-      join (Native.String.of_string "Log") message
+      join (start "Log") message
     | Output.New Command.FileRead _ file_name =>
-      join (Native.String.of_string "FileRead") (export_string file_name)
+      join (start "FileRead") (export_string file_name)
     | Output.New Command.ServerSocketBind _ port =>
-      join (Native.String.of_string "ServerSocketBind") (export_N port)
+      join (start "ServerSocketBind") (export_N port)
     | Output.New Command.ClientSocketRead _ client_id =>
-      join (Native.String.of_string "ClientSocketRead") (export_client_id client_id)
+      join (start "ClientSocketRead") (export_client_id client_id)
     | Output.New Command.ClientSocketWrite _ (client_id, content) =>
-      join (Native.String.of_string "ClientSocketWrite")
+      join (start "ClientSocketWrite")
         (join (export_client_id client_id) (export_string content))
     end.
 End Output.
@@ -259,7 +261,7 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
             let error_message := "Input ignored: " ++ error_message in
             Native.seq
               (fun _ => Native.print_error (Native.String.of_string error_message))
-              (fun _ => None)
+              (fun _ => Some mem)
           end)
         end)
   end.

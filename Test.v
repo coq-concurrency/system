@@ -33,9 +33,12 @@ Module HelloWorld.
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
     C.Send (Output.New Command.Log 0 "Hello world!").
 
-  (** Handle events (no event to handle). *)
-  Definition handle {sig : Signature.t} (_ : Input.t) : C sig unit :=
-    C.Ret tt.
+  (** Handle events. *)
+  Definition handle {sig : Signature.t} (input : Input.t) : C sig unit :=
+    match input with
+    | Input.New Command.Log _ _ => C.Exit tt
+    | _ => C.Ret tt
+    end.
 
   (*Check eq_refl : C.run Memory.Nil (start tt) =
     (Some tt, Memory.Nil, [
