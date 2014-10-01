@@ -1,5 +1,6 @@
 (** Test the standard library. *)
 Require Import Coq.Lists.List.
+Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.String.
 Require Import Computation.
 Require Import Pervasives.
@@ -86,33 +87,29 @@ Module ReadFile.
   Extraction "tests/readFile" read_file.
 End ReadFile.
 
-(** An echo server logging all the incoming messages. *)
-Module EchoServer.
-  Definition port : nat := 4.
+(** A server logging all the incoming messages. *)
+Module LogServer.
+  Definition port : N := 4 % N.
 
   (** Start the program. *)
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
-    TCPServerSocket.bind port.
+    C.Send (Output.New Command.ServerSocketBind 0 port).
 
   (** Handle events. *)
   Definition handle {sig : Signature.t} (input : Input.t) : C sig unit :=
     match input with
-    | Input.ServerSocket input =>
-      match input with
-      | TCPServerSocket.Input.Bound _ => Log.write "Server socket opened."
-      end
-    | Input.ClientSocket input =>
-      match input with
-      | TCPClientSocket.Input.Accepted _ =>
-        Log.write "Client connection accepted."
-      | TCPClientSocket.Input.Read id data =>
-        do! Log.write ("Input: " ++ data) in
-        TCPClientSocket.write id data
-      end
+    | Input.New Command.ServerSocketBind _ None =>
+        C.Send (Output.New Command.Log 0 "The server socket cannot open.")
+    | Input.New Command.Log 0 _ => C.Exit tt
+    | Input.New Command.ServerSocketBind _ (Some client_id) =>
+      do! C.Send (Output.New Command.Log 1 "Client connection accepted.") in
+      C.Send (Output.New Command.ClientSocketRead 0 client_id)
+    | Input.New Command.ClientSocketRead _ (Some content) =>
+      C.Send (Output.New Command.Log 2 content)
     | _ => C.Ret tt
     end.
 
-  (** Run the program sequentially on a list of input events. *)
+  (*(** Run the program sequentially on a list of input events. *)
   Definition run (inputs : list Input.t) : list Output.t :=
     let program :=
       do! start tt in
@@ -135,8 +132,8 @@ Module EchoServer.
     Output.Log (Log.Output.Write "Input: hi");
     Output.Log (Log.Output.Write "Client connection accepted.");
     Output.Log (Log.Output.Write "Server socket opened.");
-    Output.ServerSocket (TCPServerSocket.Output.Bind port)].
+    Output.ServerSocket (TCPServerSocket.Output.Bind port)].*)
 
-  Definition echo_server := Extraction.run _ Memory.Nil start handle.
-  Extraction "tests/echoServer" echo_server.
-End EchoServer.
+  Definition log_server := Extraction.run _ Memory.Nil start handle.
+  Extraction "tests/logServer" log_server.
+End LogServer.
