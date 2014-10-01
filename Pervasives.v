@@ -2,7 +2,6 @@
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.String.
-Require Import Computation.
 Require Import String.
 
 Import ListNotations.
@@ -68,7 +67,3 @@ Module Output.
     id : N;
     argument : Command.request command }.
 End Output.
-
-(** A computation using the output type of the standard library. *)
-Definition C (sig : Signature.t) (A : Type) : Type :=
-  C.t sig Output.t A.

@@ -1,6 +1,7 @@
 (** The standard library. *)
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
+Require Import CallBacks.
 Require Import Computation.
 Require Import Pervasives.
 
@@ -11,8 +12,11 @@ Import C.Notations.
 (** Log data. *)
 Module Log.
   (** Log a message on the standard output. *)
-  Definition write {sig : Signature.t} (message : string) : C sig unit :=
-    C.Send (Output.Log (Log.Output.Write message)).
+  Definition write {sig : Signature.t} `{Ref.C (CallBacks.t sig) sig}
+    (message : string)
+    (on_success : unit -> C sig unit) (on_error : unit -> C sig unit)
+    : C sig unit :=
+    C.Ret tt.
 End Log.
 
 (** Read a file. *)
