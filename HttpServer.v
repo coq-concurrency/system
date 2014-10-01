@@ -43,7 +43,7 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3" =
 
 (** The list of connected clients. *)
 Module Clients.
-  (** A association list of client socket ids / requested files. *)
+  (** An association list of client socket ids / requested files. *)
   Definition t := list (TCPClientSocket.Id.t * string).
 
   (** An empty table of clients. *)

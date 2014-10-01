@@ -7,10 +7,6 @@ Require Import Pervasives.
 Import ListNotations.
 Import C.Notations.
 
-(** A computation using the output type of the standard library. *)
-Definition C (sig : Signature.t) (A : Type) : Type :=
-  C.t sig Output.t A.
-
 (*
 (** Log data. *)
 Module Log.

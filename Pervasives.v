@@ -2,6 +2,7 @@
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.String.
+Require Import Computation.
 Require Import String.
 
 Import ListNotations.
@@ -39,6 +40,19 @@ Module Command.
     | ClientSocketRead => option string
     | ClientSocketWrite => bool
     end.
+
+  Definition eq_dec (command1 command2 : t) :
+    {command1 = command2} + {command1 <> command2}.
+    destruct command1; destruct command2;
+      try (left; congruence);
+      try (right; congruence).
+  Defined.
+
+  Definition eqb (command1 command2 : t) : bool :=
+    if eq_dec command1 command2 then
+      true
+    else
+      false.
 End Command.
 
 Module Input.
@@ -54,3 +68,7 @@ Module Output.
     id : N;
     argument : Command.request command }.
 End Output.
+
+(** A computation using the output type of the standard library. *)
+Definition C (sig : Signature.t) (A : Type) : Type :=
+  C.t sig Output.t A.
