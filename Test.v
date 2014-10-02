@@ -16,7 +16,8 @@ Module DoNothing.
   Definition program : C.t [] unit :=
     C.Exit tt.
 
-  Compute Run.run_on_inputs _ program Memory.Nil [].
+  Definition test1 : Run.run_on_inputs _ program Memory.Nil [] = (true, []) :=
+    eq_refl.
 
   (*Definition do_nothing := Extraction.run _ Memory.Nil program.
   Extraction "tests/doNothing" do_nothing.*)
@@ -30,9 +31,21 @@ Module HelloWorld.
     Log.write "world!" (fun _ =>
     C.Exit tt)).
 
-  Compute Run.run_on_inputs _ program Memory.Nil [
+  Definition test1 : Run.run_on_inputs _ program Memory.Nil [
     Input.New Command.Log 1 true;
-    Input.New Command.Log 2 true ].
+    Input.New Command.Log 2 true ] =
+    (true, [
+      Output.New Command.Log 2 "world!";
+      Output.New Command.Log 1 "Hello" ]) :=
+    eq_refl.
+
+  Definition test2 : Run.run_on_inputs _ program Memory.Nil [
+    Input.New Command.Log 2 true;
+    Input.New Command.Log 1 true ] =
+    (false, [
+      Output.New Command.Log 2 "world!";
+      Output.New Command.Log 1 "Hello" ]) :=
+    eq_refl.
 
   (*Definition hello_world := Extraction.run _ Memory.Nil start handle.
   Extraction "tests/helloWorld" hello_world.*)

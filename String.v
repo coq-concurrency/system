@@ -19,9 +19,6 @@ Fixpoint eqb (s1 s2 : string) : bool :=
       false
   end.
 
-Check eq_refl : eqb "hi" "hi" = true.
-Check eq_refl : eqb "hi" "bye" = false.
-
 Fixpoint reverse_aux (s : string) (rev : string) : string :=
   match s with
   | EmptyString => rev
@@ -31,8 +28,6 @@ Fixpoint reverse_aux (s : string) (rev : string) : string :=
 (** Reverse a string. *)
 Definition reverse (s : string) : string :=
   reverse_aux s "".
-
-Check eq_refl : reverse "hello" = "olleh".
 
 Fixpoint split_aux (s : string) (c : ascii) (beginning : string)
   : list string :=
@@ -49,5 +44,12 @@ Fixpoint split_aux (s : string) (c : ascii) (beginning : string)
 Definition split (s : string) (c : ascii) : list string :=
   split_aux s c "".
 
-Check eq_refl : split "go stop go" " " = ["go"; "stop"; "go"].
-Check eq_refl : split "grr" " " = ["grr"].
+Module Tests.
+  Definition test1 : eqb "hi" "hi" = true := eq_refl.
+  Definition test2 : eqb "hi" "bye" = false := eq_refl.
+
+  Definition test3 : reverse "hello" = "olleh" := eq_refl.
+
+  Definition tes4 : split "go stop go" " " = ["go"; "stop"; "go"] := eq_refl.
+  Definition test5 : split "grr" " " = ["grr"] := eq_refl.
+End Tests.
