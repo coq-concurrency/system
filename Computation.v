@@ -55,16 +55,17 @@ Module C.
   | Bind : forall (A B : Type), t sig A -> (A -> t sig B) -> t sig B
   | Read : forall (A : Type), `{Ref.C A sig} -> t sig A
   | Write : forall (A : Type), `{Ref.C A sig} -> A -> t sig unit
-  | Send : Output.t -> t sig unit
+  | Send : forall (command : Command.t), Command.request command ->
+    (Command.answer command -> t sig unit) -> t sig unit
   | Exit : unit -> t sig unit.
   Arguments Ret [sig A] _.
   Arguments Bind [sig A B] _ _.
   Arguments Read [sig A] {_}.
   Arguments Write [sig A] {_} _.
-  Arguments Send [sig] _.
+  Arguments Send [sig] _ _ _.
   Arguments Exit [sig] _.
 
-  Fixpoint run_aux (sig : Signature.t) (A : Type)
+  (*Fixpoint run_aux (sig : Signature.t) (A : Type)
     (mem : Memory.t sig) (output : list Output.t) (x : t sig A)
     : option A * Memory.t sig * list Output.t :=
     match x with
@@ -85,7 +86,7 @@ Module C.
     (mem : Memory.t sig) (x : t sig A)
     : option A * Memory.t sig * list Output.t :=
     run_aux _ _ mem [] x.
-  Arguments run [sig A] _ _.
+  Arguments run [sig A] _ _.*)
 
   (** Monadic notation. *)
   Module Notations.
