@@ -16,9 +16,9 @@ Module Heap.
   Fixpoint add (A : Type) (heap : t A) (x : A) (n : positive) : t A :=
     match (heap, n) with
     | (Empty, _) => Node x Empty Empty
-    | (Node y heap _, xH) => add A heap x n
-    | (Node y heap _, xO n) => add A heap x n
-    | (Node y _ heap, xI n) => add A heap x n
+    | (Node y heap1 heap2, xH) => Node y (add A heap1 x n) heap2
+    | (Node y heap1 heap2, xO n) => Node y (add A heap1 x n) heap2
+    | (Node y heap1 heap2, xI n) => Node y heap1 (add A heap2 x n)
     end.
 
   Fixpoint find (A : Type) (heap : t A) (n : positive) : option A :=
@@ -28,6 +28,25 @@ Module Heap.
     | (Node x heap _, xO n) => find A heap n
     | (Node x _ heap, xI n) => find A heap n
     end.
+
+  Module Tests.
+    Definition h :=
+      let h := add _ Empty 1 1 in
+      let h := add _ h 2 2 in
+      let h := add _ h 3 3 in
+      let h := add _ h 4 4 in
+      add _ h 5 5.
+
+    Definition test1 : h = Node 1 (Node 2 (Node 4 Empty Empty) Empty)
+      (Node 3 (Node 5 Empty Empty) Empty) :=
+      eq_refl.
+
+    Definition test2 : find _ Empty 3 = None (A := nat) :=
+      eq_refl.
+
+    Definition test3 : find _ h 3 = Some 3 :=
+      eq_refl.
+  End Tests.
 End Heap.
 
 Module CallBacks.
