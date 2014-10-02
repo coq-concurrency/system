@@ -3,9 +3,10 @@ Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.String.
 Require Import Computation.
-Require Import Pervasives.
-Require Import StdLib.
+Require Import Events.
 Require Import Extraction.
+Require Import Program.
+Require Import StdLib.
 
 Import ListNotations.
 Import C.Notations.
@@ -13,24 +14,21 @@ Open Local Scope string.
 
 (** Do nothing. *)
 Module DoNothing.
-  (** Start the program. *)
-  Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
+  Definition start {sig : Signature.t} (_ : unit) : C.t sig unit :=
     C.Exit tt.
 
-  (** Handle events (no event to handle). *)
-  Definition handle {sig : Signature.t} (_ : Input.t) : C sig unit :=
+  Definition handle {sig : Signature.t} (_ : Input.t) : C.t sig unit :=
     C.Ret tt.
 
-  Check eq_refl : C.run Memory.Nil (start tt) =
-    (None, Memory.Nil, []).
+  Definition program : Program.t [] := Program.New _ start handle.
 
-  Definition do_nothing := Extraction.run _ Memory.Nil start handle.
+  Definition do_nothing := Extraction.run _ Memory.Nil program.
   Extraction "tests/doNothing" do_nothing.
 End DoNothing.
 
+(*
 (** Say hello. *)
 Module HelloWorld.
-  (** Start the program. *)
   Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
     C.Send (Output.New Command.Log 0 "Hello world!").
 
@@ -137,3 +135,4 @@ Module LogServer.
   Definition log_server := Extraction.run _ Memory.Nil start handle.
   Extraction "tests/logServer" log_server.
 End LogServer.
+*)

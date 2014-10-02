@@ -1,6 +1,6 @@
 (** The definition of a computation, used to represent concurrent programs. *)
 Require Import Coq.Lists.List.
-Require Import Pervasives.
+Require Import Events.
 
 Import ListNotations.
 
@@ -64,7 +64,7 @@ Module C.
   Arguments Write [sig A] {_} _.
   Arguments Send [sig] _ _ _.
   Arguments Exit [sig] _.
-  
+
   (** Monadic notation. *)
   Module Notations.
     Notation "'let!' X ':=' A 'in' B" := (Bind A (fun X => B))

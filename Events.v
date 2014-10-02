@@ -1,4 +1,4 @@
-(** Basic type and event definitions. *)
+(** Events. *)
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.PArith.PArith.

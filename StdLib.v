@@ -2,22 +2,19 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
 Require Import Computation.
-Require Import Pervasives.
+Require Import Events.
 
 Import ListNotations.
-Import C.Notations.
 
-(*
 (** Log data. *)
 Module Log.
   (** Log a message on the standard output. *)
-  Definition write {sig : Signature.t} `{Ref.C (CallBacks.t sig) sig}
-    (message : string)
-    (on_success : unit -> C sig unit) (on_error : unit -> C sig unit)
-    : C sig unit :=
-    C.Ret tt.
+  Definition write {sig : Signature.t} (message : string)
+    (handler : bool -> C.t sig unit) : C.t sig unit :=
+    C.Send Command.Log message handler.
 End Log.
 
+(*
 (** Read a file. *)
 Module File.
   (** Read all the content of a file. *)

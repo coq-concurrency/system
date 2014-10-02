@@ -1,13 +1,15 @@
 (** Extraction of computations to OCaml. *)
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
+Require Import Coq.PArith.PArith.
 Require Import Coq.Strings.String.
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlBigIntConv.
 Require Import ExtrOcamlString.
 Require Import Computation.
-Require Import Pervasives.
-Require Import StdLib.
+Require Import Events.
+Require Import Run.
+Require Import Program.
 
 Import ListNotations.
 Open Local Scope string.
@@ -92,6 +94,9 @@ Module Native.
       | s -> Some s
       | exception _ -> None".
 
+    Definition to_positive : t -> positive := pos_of_bigint.
+    Definition of_positive : positive -> t := bigint_of_pos.
+
     Definition to_N : t -> N := n_of_bigint.
     Definition of_N : N -> t := bigint_of_n.
   End BigInt.
@@ -128,6 +133,9 @@ Module Input.
     else
       None.
 
+  Definition import_positive (n : Native.String.t) : option positive :=
+    option_map Native.BigInt.to_positive (Native.BigInt.of_string n).
+
   Definition import_N (n : Native.String.t) : option N :=
     option_map Native.BigInt.to_N (Native.BigInt.of_string n).
 
@@ -143,7 +151,7 @@ Module Input.
   Definition import (input : Native.String.t) : Input.t + string :=
     match Native.String.tokenize input with
     | command :: id :: arguments =>
-      match (import_command command, import_N id) with
+      match (import_command command, import_positive id) with
       | (None, _) => inr "Unknown command."
       | (_, None) => inr "Invalid id."
       | (Some command, Some id) =>
@@ -194,6 +202,9 @@ Module Output.
     else
       Native.String.of_string "false".
 
+  Definition export_positive (n : positive) : Native.String.t :=
+    Native.BigInt.to_string (Native.BigInt.of_positive n).
+
   Definition export_N (n : N) : Native.String.t :=
     Native.BigInt.to_string (Native.BigInt.of_N n).
 
@@ -206,7 +217,7 @@ Module Output.
     Native.Base64.encode (Native.String.of_string s).
 
   Definition export (output : Output.t) : Native.String.t :=
-    let id := export_N (Output.id output) in
+    let id := export_positive (Output.id output) in
     let start (s : string) :=
       join (Native.String.of_string s) id in
     match output with
@@ -226,7 +237,7 @@ Module Output.
 End Output.
 
 Definition run (sig : Signature.t) (mem : Memory.t sig)
-  (start : unit -> C sig unit) (handle : Input.t -> C sig unit) : unit :=
+  (program : Program.t sig) : unit :=
   let system := Native.Process.run (Native.String.of_string "./systemProxy.native") in
   let fix print_outputs outputs :=
     match outputs with
@@ -236,32 +247,36 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
         (fun _ => Native.Process.print_line (Output.export output) system)
         (fun _ => print_outputs outputs)
     end in
-  match C.run mem (start tt) with
-  | (result, mem, outputs) =>
+  let start := Program.start _ program in
+  let handle := Program.handle _ program in
+  match Run.run (CallBacks.empty _) mem [] (start tt) with
+  | (result, call_backs, mem, outputs) =>
     Native.seq
       (fun _ => print_outputs outputs)
       (fun _ =>
         match result with
         | None => tt
         | Some _ =>
-          Native.Process.fold_lines _ system mem (fun mem input =>
-          match Input.import input with
-          | inl input =>
-            match C.run mem (handle input) with
-            | (result, mem, outputs) =>
+          let state := (call_backs, mem) in
+          Native.Process.fold_lines _ system state (fun state input =>
+            let (call_backs, mem) := state in
+            match Input.import input with
+            | inl input =>
+              match Run.run call_backs mem [] (handle input) with
+              | (result, call_backs, mem, outputs) =>
+                Native.seq
+                  (fun _ => print_outputs outputs)
+                  (fun _ =>
+                    match result with
+                    | None => None
+                    | Some _ => Some (call_backs, mem)
+                    end)
+              end
+            | inr error_message =>
+              let error_message := "Input ignored: " ++ error_message in
               Native.seq
-                (fun _ => print_outputs outputs)
-                (fun _ =>
-                  match result with
-                  | None => None
-                  | Some _ => Some mem
-                  end)
-            end
-          | inr error_message =>
-            let error_message := "Input ignored: " ++ error_message in
-            Native.seq
-              (fun _ => Native.print_error (Native.String.of_string error_message))
-              (fun _ => Some mem)
-          end)
+                (fun _ => Native.print_error (Native.String.of_string error_message))
+                (fun _ => Some state)
+            end)
         end)
   end.
