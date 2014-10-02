@@ -236,8 +236,8 @@ Module Output.
     end.
 End Output.
 
-Definition run (sig : Signature.t) (mem : Memory.t sig)
-  (program : Program.t sig) : unit :=
+Definition run (sig : Signature.t) (mem : Memory.t sig) (x : C.t sig unit)
+  : unit :=
   let system := Native.Process.run (Native.String.of_string "./systemProxy.native") in
   let fix print_outputs outputs :=
     match outputs with
@@ -247,9 +247,7 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
         (fun _ => Native.Process.print_line (Output.export output) system)
         (fun _ => print_outputs outputs)
     end in
-  let start := Program.start _ program in
-  let handle := Program.handle _ program in
-  match Run.run _ _ (CallBacks.empty _) mem [] (start tt) with
+  match Run.run _ _ (CallBacks.empty _) mem [] x with
   | (result, call_backs, mem, outputs) =>
     Native.seq
       (fun _ => print_outputs outputs)
@@ -262,15 +260,19 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
             let (call_backs, mem) := state in
             match Input.import input with
             | inl input =>
-              match Run.run _ _ call_backs mem [] (handle input) with
-              | (result, call_backs, mem, outputs) =>
-                Native.seq
-                  (fun _ => print_outputs outputs)
-                  (fun _ =>
-                    match result with
-                    | None => None
-                    | Some _ => Some (call_backs, mem)
-                    end)
+              match Run.call_back _ call_backs input with
+              | None => Some state
+              | Some call_back =>
+                match Run.run _ _ call_backs mem [] call_back with
+                | (result, call_backs, mem, outputs) =>
+                  Native.seq
+                    (fun _ => print_outputs outputs)
+                    (fun _ =>
+                      match result with
+                      | None => None
+                      | Some _ => Some (call_backs, mem)
+                      end)
+                end
               end
             | inr error_message =>
               let error_message := "Input ignored: " ++ error_message in
