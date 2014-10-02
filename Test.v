@@ -5,7 +5,6 @@ Require Import Coq.Strings.String.
 Require Import Computation.
 Require Import Events.
 Require Import Extraction.
-Require Import Program.
 Require Import StdLib.
 
 Import ListNotations.
@@ -14,39 +13,32 @@ Open Local Scope string.
 
 (** Do nothing. *)
 Module DoNothing.
-  Definition start {sig : Signature.t} (_ : unit) : C.t sig unit :=
+  Definition program : C.t [] unit :=
     C.Exit tt.
 
-  Definition handle {sig : Signature.t} (_ : Input.t) : C.t sig unit :=
-    C.Ret tt.
+  Compute Run.run_on_inputs _ program Memory.Nil [].
 
-  Definition program : Program.t [] := Program.New _ start handle.
-
-  Definition do_nothing := Extraction.run _ Memory.Nil program.
-  Extraction "tests/doNothing" do_nothing.
+  (*Definition do_nothing := Extraction.run _ Memory.Nil program.
+  Extraction "tests/doNothing" do_nothing.*)
 End DoNothing.
 
-(*
+
 (** Say hello. *)
 Module HelloWorld.
-  Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
-    C.Send (Output.New Command.Log 0 "Hello world!").
+  Definition program : C.t [] unit :=
+    Log.write "Hello" (fun _ =>
+    Log.write "world!" (fun _ =>
+    C.Exit tt)).
 
-  (** Handle events. *)
-  Definition handle {sig : Signature.t} (input : Input.t) : C sig unit :=
-    match input with
-    | Input.New Command.Log _ _ => C.Exit tt
-    | _ => C.Ret tt
-    end.
+  Compute Run.run_on_inputs _ program Memory.Nil [
+    Input.New Command.Log 1 true;
+    Input.New Command.Log 2 true ].
 
-  (*Check eq_refl : C.run Memory.Nil (start tt) =
-    (Some tt, Memory.Nil, [
-      Output.Log (Log.Output.Write "Hello world!")]).*)
-
-  Definition hello_world := Extraction.run _ Memory.Nil start handle.
-  Extraction "tests/helloWorld" hello_world.
+  (*Definition hello_world := Extraction.run _ Memory.Nil start handle.
+  Extraction "tests/helloWorld" hello_world.*)
 End HelloWorld.
 
+(*
 (** Print the content of a file. *)
 Module ReadFile.
   (** The file to open. *)

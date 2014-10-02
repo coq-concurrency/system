@@ -15,6 +15,6 @@ Definition run (sig : Signature.t) (program : t sig) (mem : Memory.t sig)
   let program :=
     do! start _ program tt in
     List.iter inputs (handle _ program) in
-  match Run.run (CallBacks.empty _) mem [] program with
+  match Run.run _ _ (CallBacks.empty _) mem [] program with
   | (_, _, _, outputs) => outputs
   end.

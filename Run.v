@@ -99,4 +99,36 @@ Fixpoint run (sig : Signature.t) (A : Type) (call_backs : CallBacks.t sig)
     (Some tt, call_backs, mem, output :: outputs)
   | C.Exit _ => (None, call_backs, mem, outputs)
   end.
-Arguments run [sig A] _ _ _ _.
+
+Definition call_back (sig : Signature.t) (call_backs : CallBacks.t sig)
+  (input : Input.t) : option (C.t sig unit) :=
+  let (command, id, argument) := input in
+  match CallBacks.find _ call_backs command id with
+  | None => None
+  | Some call_back => Some (call_back argument)
+  end.
+
+Fixpoint run_call_backs (sig : Signature.t) (call_backs : CallBacks.t sig)
+  (mem : Memory.t sig) (outputs : list Output.t) (inputs : list Input.t)
+  : bool * list Output.t :=
+  match inputs with
+  | [] => (false, outputs)
+  | input :: inputs =>
+    match call_back _ call_backs input with
+    | None => run_call_backs _ call_backs mem outputs inputs
+    | Some call_back =>
+      match run _ _ call_backs mem outputs call_back with
+      | (None, _, _, outputs) => (true, outputs)
+      | (Some _, call_backs, mem, outputs) =>
+        run_call_backs _ call_backs mem outputs inputs
+      end
+    end
+  end.
+
+Definition run_on_inputs (sig : Signature.t) (x : C.t sig unit)
+  (mem : Memory.t sig) (inputs : list Input.t) : bool * list Output.t :=
+  match run _ _ (CallBacks.empty _) mem [] x with
+  | (None, _, _, outputs) => (true, outputs)
+  | (Some _, call_backs, mem, outputs) =>
+    run_call_backs _ call_backs mem outputs inputs
+  end.

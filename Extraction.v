@@ -249,7 +249,7 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
     end in
   let start := Program.start _ program in
   let handle := Program.handle _ program in
-  match Run.run (CallBacks.empty _) mem [] (start tt) with
+  match Run.run _ _ (CallBacks.empty _) mem [] (start tt) with
   | (result, call_backs, mem, outputs) =>
     Native.seq
       (fun _ => print_outputs outputs)
@@ -262,7 +262,7 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
             let (call_backs, mem) := state in
             match Input.import input with
             | inl input =>
-              match Run.run call_backs mem [] (handle input) with
+              match Run.run _ _ call_backs mem [] (handle input) with
               | (result, call_backs, mem, outputs) =>
                 Native.seq
                   (fun _ => print_outputs outputs)
