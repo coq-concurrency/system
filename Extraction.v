@@ -121,6 +121,8 @@ Module Input.
       Some Command.ClientSocketRead
     else if String.eqb command "ClientSocketWrite" then
       Some Command.ClientSocketWrite
+    else if String.eqb command "ClientSocketClose" then
+      Some Command.ClientSocketClose
     else
       None.
   
@@ -181,7 +183,12 @@ Module Input.
         | (Command.ClientSocketWrite, [is_success]) =>
           match import_bool is_success with
           | None => inr "Invalid boolean."
-          | Some is_success => inl (Input.New Command.Log id is_success)
+          | Some is_success => inl (Input.New Command.ClientSocketWrite id is_success)
+          end
+        | (Command.ClientSocketClose, [is_success]) =>
+          match import_bool is_success with
+          | None => inr "Invalid boolean."
+          | Some is_success => inl (Input.New Command.ClientSocketClose id is_success)
           end
         | _ => inr "Wrong number of arguments."
         end
@@ -233,6 +240,8 @@ Module Output.
     | Output.New Command.ClientSocketWrite _ (client_id, content) =>
       join (start "ClientSocketWrite")
         (join (export_client_id client_id) (export_string content))
+    | Output.New Command.ClientSocketClose _ client_id =>
+      join (start "ClientSocketClose") (export_client_id client_id)
     end.
 End Output.
 

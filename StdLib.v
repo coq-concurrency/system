@@ -35,6 +35,11 @@ Module ClientSocket.
   Definition write {sig : Signature.t} (id : ClientSocketId.t) (data : string)
     (call_back : bool -> C.t sig unit) : C.t sig unit :=
     C.Send Command.ClientSocketWrite (id, data) call_back.
+
+  (** Close the socket. *)
+  Definition close {sig : Signature.t} (id : ClientSocketId.t)
+    (call_back : bool -> C.t sig unit) : C.t sig unit :=
+    C.Send Command.ClientSocketClose id call_back.
 End ClientSocket.
 
 (** TCP server socket. *)

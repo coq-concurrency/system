@@ -43,14 +43,16 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3" =
   eq_refl.
 
 Definition http_answer_OK (content : string) : string :=
-  "HTTP/1.0 200 OK
+  "HTTP/1.0 200 Not Found
 Content-Type: text/plain
 
 " ++ content.
 
 Definition http_answer_error : string :=
   "HTTP/1.0 404 OK
-Content-Type: text/plain".
+Content-Type: text/plain
+
+404".
 
 Definition program : C.t [] unit :=
   ServerSocket.bind 80 (fun client =>
@@ -68,7 +70,14 @@ Definition program : C.t [] unit :=
           | None => http_answer_error
           | Some content => http_answer_OK content
           end in
-        ClientSocket.write client answer (fun _ => C.Ret tt))
+        ClientSocket.write client answer (fun _ =>
+        ClientSocket.close client (fun is_closed =>
+          let message := 
+            if is_closed then
+              "Client closed."
+            else
+              "Client cannot be closed." in
+            Log.write message (fun _ => C.Ret tt))))
       end)
     end).
 
