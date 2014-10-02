@@ -64,30 +64,7 @@ Module C.
   Arguments Write [sig A] {_} _.
   Arguments Send [sig] _ _ _.
   Arguments Exit [sig] _.
-
-  (*Fixpoint run_aux (sig : Signature.t) (A : Type)
-    (mem : Memory.t sig) (output : list Output.t) (x : t sig A)
-    : option A * Memory.t sig * list Output.t :=
-    match x with
-    | Ret _ x => (Some x, mem, output)
-    | Bind _ _ x f =>
-      match run_aux _ _ mem output x with
-      | (Some x, mem, output) => run_aux _ _ mem output (f x)
-      | (None, mem, output) => (None, mem, output)
-      end
-    | Read _ _ => (Some (Ref.read mem), mem, output)
-    | Write _ _ v => (Some tt, Ref.write mem v, output)
-    | Send v => (Some tt, mem, v :: output)
-    | Exit _ => (None, mem, output)
-    end.
-
-  (** Run a computation on an initialized shared memory. *)
-  Definition run (sig : Signature.t) (A : Type)
-    (mem : Memory.t sig) (x : t sig A)
-    : option A * Memory.t sig * list Output.t :=
-    run_aux _ _ mem [] x.
-  Arguments run [sig A] _ _.*)
-
+  
   (** Monadic notation. *)
   Module Notations.
     Notation "'let!' X ':=' A 'in' B" := (Bind A (fun X => B))

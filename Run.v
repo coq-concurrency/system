@@ -40,10 +40,11 @@ Module CallBacks.
     next := xH |}.
 
   Definition add (sig : Signature.t) (call_backs : t sig) (command : Command.t)
-    (call_back : Command.answer command -> C.t sig unit) : t sig := {|
-    heap := Heap.add _ (heap _ call_backs) (existT _ command call_back)
-      (next _ call_backs);
-    next := next _ call_backs + 1 |}.
+    (call_back : Command.answer command -> C.t sig unit) : positive * t sig :=
+    let id := next _ call_backs in
+    (id, {|
+      heap := Heap.add _ (heap _ call_backs) (existT _ command call_back) id;
+      next := id + 1 |}).
 
   Definition find (sig : Signature.t) (call_backs : t sig) (command : Command.t)
     (id : positive) : option (Command.answer command -> C.t sig unit) :=
@@ -58,3 +59,29 @@ Module CallBacks.
       end
     end.
 End CallBacks.
+
+Fixpoint run_aux (sig : Signature.t) (A : Type) (call_backs : CallBacks.t sig)
+  (mem : Memory.t sig) (outputs : list Output.t) (x : C.t sig A)
+  : option A * CallBacks.t sig * Memory.t sig * list Output.t :=
+  match x with
+  | C.Ret _ x => (Some x, call_backs, mem, outputs)
+  | C.Bind _ _ x f =>
+    match run_aux _ _ call_backs mem outputs x with
+    | (Some x, call_backs, mem, outputs) =>
+      run_aux _ _ call_backs mem outputs (f x)
+    | (None, call_backs, mem, outputs) => (None, call_backs, mem, outputs)
+    end
+  | C.Read _ _ => (Some (Ref.read mem), call_backs, mem, outputs)
+  | C.Write _ _ v => (Some tt, call_backs, Ref.write mem v, outputs)
+  | C.Send command request call_back =>
+    let (id, call_backs) := CallBacks.add _ call_backs command call_back in
+    let output := Output.New command id request in
+    (Some tt, call_backs, mem, output :: outputs)
+  | C.Exit _ => (None, call_backs, mem, outputs)
+  end.
+
+(** Run a computation on an initialized shared memory. *)
+Definition run (sig : Signature.t) (A : Type) (mem : Memory.t sig)
+  (x : C.t sig A) : option A * CallBacks.t sig * Memory.t sig * list Output.t :=
+  run_aux _ _ (CallBacks.empty _) mem [] x.
+Arguments run [sig A] _ _.

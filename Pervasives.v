@@ -1,6 +1,7 @@
 (** Basic type and event definitions. *)
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
+Require Import Coq.PArith.PArith.
 Require Import Coq.Strings.String.
 Require Import String.
 
@@ -57,13 +58,13 @@ End Command.
 Module Input.
   Record t : Set := New {
     command : Command.t;
-    id : N;
+    id : positive;
     argument : Command.answer command }.
 End Input.
 
 Module Output.
   Record t : Set := New {
     command : Command.t;
-    id : N;
+    id : positive;
     argument : Command.request command }.
 End Output.
