@@ -70,12 +70,14 @@ End ReadFile.
 
 (** A server responding to all incoming messages. *)
 Module EchoServer.
-  Definition port : N := 4 % N.
+  Definition port : N := 5 % N.
 
   Definition program : C.t [] unit :=
     ServerSocket.bind port (fun client_id =>
       match client_id with
-      | None => C.Ret tt
+      | None =>
+        do! Log.write "Server socket failed." (fun _ => C.Ret tt) in
+        C.Exit tt
       | Some client_id =>
         ClientSocket.read client_id (fun content =>
         match content with

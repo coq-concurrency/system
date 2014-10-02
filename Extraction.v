@@ -43,7 +43,7 @@ Module Native.
 
     Parameter tokenize : t -> list t.
     Extract Constant tokenize => "fun s ->
-      Str.split (Str.regexp_string "" "") s".
+      Str.split_delim (Str.regexp_string "" "") s".
 
     Parameter is_empty : t -> bool.
     Extract Constant is_empty => "fun s ->
@@ -275,7 +275,8 @@ Definition run (sig : Signature.t) (mem : Memory.t sig) (x : C.t sig unit)
                 end
               end
             | inr error_message =>
-              let error_message := "Input ignored: " ++ error_message in
+              let error_message := "Input '" ++ Native.String.to_string input ++
+                "'ignored: " ++ error_message in
               Native.seq
                 (fun _ => Native.print_error (Native.String.of_string error_message))
                 (fun _ => Some state)

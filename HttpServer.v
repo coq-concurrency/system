@@ -2,7 +2,7 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
 Require Import Computation.
-Require Import Pervasives.
+Require Import Events.
 Require Import StdLib.
 Require Import String.
 
@@ -14,11 +14,11 @@ Open Local Scope string.
 Module Method.
   (** For now, only the GET method is handled. *)
   Inductive t : Set :=
-  | get : t.
+  | Get : t.
 
   Definition of_string (method : string) : option t :=
     if String.eqb method "GET" then
-      Some get
+      Some Get
     else
       None.
 End Method.
@@ -35,157 +35,45 @@ Definition parse (request : string) : option (Method.t * string) :=
   | _ => None
   end.
 
-Check eq_refl : parse "GET /page.html HTTP/1.0
+Definition test_parse : parse "GET /page.html HTTP/1.0
 Host: example.com
 Referer: http://example.com/
 User-Agent: CERN-LineMode/2.15 libwww/2.17b3" =
-  Some (Method.get, "/page.html").
+  Some (Method.Get, "/page.html") :=
+  eq_refl.
 
-(** The list of connected clients. *)
-Module Clients.
-  (** An association list of client socket ids / requested files. *)
-  Definition t := list (TCPClientSocket.Id.t * string).
-
-  (** An empty table of clients. *)
-  Definition empty : t :=
-    [].
-
-  (** Add (or update) a client's request. *)
-  Fixpoint add (clients : t) (client : TCPClientSocket.Id.t)
-    (file_name : string) : t :=
-    match clients with
-    | [] => [(client, file_name)]
-    | (client', file_name') :: clients =>
-      if TCPClientSocket.Id.eqb client client' then
-        (client, file_name) :: clients
-      else
-        (client', file_name') :: add clients client file_name
-    end.
-
-  (** Try to find a client for a file name. *)
-  Fixpoint find (clients : t) (file_name : string)
-    : option TCPClientSocket.Id.t :=
-    match clients with
-    | [] => None
-    | (client', file_name') :: clients =>
-      if String.eqb file_name file_name' then
-        Some client'
-      else
-        find clients file_name
-    end.
-
-  (** Remove a client. *)
-  Fixpoint remove (clients : t) (client : TCPClientSocket.Id.t) : t :=
-    match clients with
-    | [] => []
-    | (client', file_name') :: clients =>
-      if TCPClientSocket.Id.eqb client client' then
-        clients
-      else
-        (client', file_name') :: remove clients client
-    end.
-End Clients.
-
-(** The initial memory. *)
-Definition mem : Memory.t _ :=
-  Memory.Cons Clients.empty Memory.Nil.
-
-(** Start the server. *)
-Definition start {sig : Signature.t} (_ : unit) : C sig unit :=
-  TCPServerSocket.bind 80.
-
-(** Handle server sockets. *)
-Definition handle_server_sockets {sig : Signature.t}
-  (input : TCPServerSocket.Input.t) : C sig unit :=
-  match input with
-  | TCPServerSocket.Input.Bound _ => Log.write "Server socket opened."
-  end.
-
-(** Handle client sockets. *)
-Definition handle_client_sockets {sig : Signature.t} `{Ref.C Clients.t sig}
-  (input : TCPClientSocket.Input.t) : C sig unit :=
-  match input with
-  | TCPClientSocket.Input.Accepted _ =>
-    Log.write "Client connection accepted."
-  | TCPClientSocket.Input.Read client request =>
-    match parse request with
-    | None => Log.write ("Invalid request: " ++ request)
-    | Some (Method.get, url) =>
-      let! clients := C.Read _ in
-      do! C.Write _ (Clients.add clients client url) in
-      do! Log.write ("File " ++ url ++ " requested.") in
-      File.read url
-    end
-  end.
-
-Definition http_answer (content : string) : string :=
+Definition http_answer_OK (content : string) : string :=
   "HTTP/1.0 200 OK
 Content-Type: text/plain
 
 " ++ content.
 
-(** Handle files. *)
-Definition handle_files {sig : Signature.t} `{Ref.C Clients.t sig}
-  (input : File.Input.t) : C sig unit :=
-  match input with
-  | File.Input.Read file_name data =>
-    let! clients := C.Read _ in
-    match Clients.find clients file_name with
+Definition http_answer_error : string :=
+  "HTTP/1.0 404 OK
+Content-Type: text/plain".
+
+Definition program : C.t [] unit :=
+  ServerSocket.bind 80 (fun client =>
+    match client with
+    | None => Log.write "Server socket failed." (fun _ => C.Exit tt)
     | Some client =>
-      do! C.Write _ (Clients.remove clients client) in
-      TCPClientSocket.write client (http_answer data)
-    | None => Log.write ("No client to receive the file " ++ file_name)
-    end
-  end.
-
-(** Handle all requests. *)
-Definition handle {sig : Signature.t} `{Ref.C Clients.t sig} (input : Input.t)
-  : C sig unit :=
-  match input with
-  | Input.ClientSocket input => handle_client_sockets input
-  | Input.ServerSocket input => handle_server_sockets input
-  | Input.File input => handle_files input
-  end.
-
-(** Some tests *)
-Module Test.
-  (** Run the program sequentially on a list of input events. *)
-  Definition run (inputs : list Input.t) : list Output.t :=
-    let program :=
-      do! start tt in
-      List.iter inputs handle in
-    match C.run mem program with
-    | (_, _, output) => output
-    end.
-
-  Check eq_refl : run [] = [
-    Output.ServerSocket (TCPServerSocket.Output.Bind 80)].
-
-  Definition client := TCPClientSocket.Id.New 12.
-  Definition request :=
-    "GET info/contact.html HTTP/1.0
-Host: example.com
-Referer: http://example.com/
-User-Agent: CERN-LineMode/2.15 libwww/2.17b3".
-
-  Check eq_refl : run [
-    Input.ClientSocket (TCPClientSocket.Input.Accepted client);
-    Input.ClientSocket (TCPClientSocket.Input.Read client "wrong request")] = [
-    Output.Log (Log.Output.Write "Invalid request: wrong request");
-    Output.Log (Log.Output.Write "Client connection accepted.");
-    Output.ServerSocket (TCPServerSocket.Output.Bind 80)].
-
-  Check eq_refl : run [
-    Input.ClientSocket (TCPClientSocket.Input.Accepted client);
-    Input.ClientSocket (TCPClientSocket.Input.Read client request)] = [
-    Output.File (File.Output.Read "info/contact.html");
-    Output.Log (Log.Output.Write "File info/contact.html requested.");
-    Output.Log (Log.Output.Write "Client connection accepted.");
-    Output.ServerSocket (TCPServerSocket.Output.Bind 80)].
-End Test.
+      do! Log.write "Client connected." (fun _ => C.Ret tt) in
+      ClientSocket.read client (fun request =>
+      match option_map parse request with
+      | None | Some None => C.Ret tt
+      | Some (Some (Method.Get, url)) =>
+        do! Log.write ("Reading file: '" ++ url ++ "'") (fun _ => C.Ret tt) in
+        File.read url (fun content =>
+        let answer := match content with
+          | None => http_answer_error
+          | Some content => http_answer_OK content
+          end in
+        ClientSocket.write client answer (fun _ => C.Ret tt))
+      end)
+    end).
 
 (** Extraction. *)
 Require Import Extraction.
 
-Definition http_server := Extraction.run _ mem start handle.
+Definition http_server := Extraction.run _ Memory.Nil program.
 Extraction "tests/httpServer" http_server.

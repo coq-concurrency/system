@@ -6,8 +6,7 @@
 Computation.v
 Events.v
 Extraction.v
-# HttpServer.v
-Program.v
+HttpServer.v
 Run.v
 StdLib.v
 String.v
