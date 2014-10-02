@@ -45,16 +45,19 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3" =
 Definition http_answer_OK (content : string) : string :=
   "HTTP/1.0 200 Not Found
 Content-Type: text/plain
+Server: Coq
 
 " ++ content.
 
 Definition http_answer_error : string :=
   "HTTP/1.0 404 OK
 Content-Type: text/plain
+Server: Coq
 
 404".
 
 Definition program : C.t [] unit :=
+  Log.write "Coq server:" (fun _ =>
   ServerSocket.bind 80 (fun client =>
     match client with
     | None => Log.write "Server socket failed." (fun _ => C.Exit tt)
@@ -79,7 +82,7 @@ Definition program : C.t [] unit :=
               "Client cannot be closed." in
             Log.write message (fun _ => C.Ret tt))))
       end)
-    end).
+    end)).
 
 (** Extraction. *)
 Require Import Extraction.
