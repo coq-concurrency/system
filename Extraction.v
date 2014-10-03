@@ -105,6 +105,9 @@ Module Native.
   Extract Constant print_error => "fun message ->
     prerr_endline message;
     flush stderr".
+
+  Parameter argv : list String.t.
+  Extract Constant argv => "Array.to_list Sys.argv".
 End Native.
 
 (** Import input events. *)
@@ -245,8 +248,8 @@ Module Output.
     end.
 End Output.
 
-Definition run (sig : Signature.t) (mem : Memory.t sig) (x : C.t sig unit)
-  : unit :=
+Definition run (sig : Signature.t) (mem : Memory.t sig)
+  (program : list string -> C.t sig unit) : unit :=
   let system := Native.Process.run (Native.String.of_string "./systemProxy.native") in
   let fix print_outputs outputs :=
     match outputs with
@@ -256,7 +259,8 @@ Definition run (sig : Signature.t) (mem : Memory.t sig) (x : C.t sig unit)
         (fun _ => Native.Process.print_line (Output.export output) system)
         (fun _ => print_outputs outputs)
     end in
-  match Run.run _ _ (CallBacks.empty _) mem [] x with
+  let argv := List.map Native.String.to_string Native.argv in
+  match Run.run _ _ (CallBacks.empty _) mem [] (program argv) with
   | (result, call_backs, mem, outputs) =>
     Native.seq
       (fun _ => print_outputs outputs)

@@ -13,10 +13,11 @@ Open Local Scope string.
 
 (** Do nothing. *)
 Module DoNothing.
-  Definition program : C.t [] unit :=
+  Definition program (argv : list string) : C.t [] unit :=
     C.Exit tt.
 
-  Definition test1 : Run.run_on_inputs _ program Memory.Nil [] = (true, []) :=
+  Definition test1 :
+    Run.run_on_inputs _ (program []) Memory.Nil [] = (true, []) :=
     eq_refl.
 
   Definition do_nothing := Extraction.run _ Memory.Nil program.
@@ -26,12 +27,12 @@ End DoNothing.
 
 (** Say hello. *)
 Module HelloWorld.
-  Definition program : C.t [] unit :=
+  Definition program (argv : list string) : C.t [] unit :=
     Log.write "Hello" (fun _ =>
     Log.write "world!" (fun _ =>
     C.Exit tt)).
 
-  Definition test1 : Run.run_on_inputs _ program Memory.Nil [
+  Definition test1 : Run.run_on_inputs _ (program []) Memory.Nil [
     Input.New Command.Log 1 true;
     Input.New Command.Log 2 true ] =
     (true, [
@@ -39,7 +40,7 @@ Module HelloWorld.
       Output.New Command.Log 1 "Hello" ]) :=
     eq_refl.
 
-  Definition test2 : Run.run_on_inputs _ program Memory.Nil [
+  Definition test2 : Run.run_on_inputs _ (program []) Memory.Nil [
     Input.New Command.Log 2 true;
     Input.New Command.Log 1 true ] =
     (false, [
@@ -53,16 +54,19 @@ End HelloWorld.
 
 (** Print the content of a file. *)
 Module ReadFile.
-  (** The file to open. *)
-  Definition file_name : string := "README.md".
-
-  Definition program : C.t [] unit :=
-    File.read file_name (fun content =>
-    let message := match content with
-      | None => "Error: cannot read the file."
-      | Some content => content
-      end in
-    Log.write message (fun _ => C.Exit tt)).
+  Definition program (argv : list string) : C.t [] unit :=
+    match argv with
+    | [_; file_name] =>
+      File.read file_name (fun content =>
+      let message := match content with
+        | None => "Error: cannot read the file."
+        | Some content => content
+        end in
+      Log.write message (fun _ => C.Exit tt))
+    | _ =>
+      Log.write "One parameter (the file to read) expected." (fun _ =>
+      C.Exit tt)
+    end.
 
   Definition read_file := Extraction.run _ Memory.Nil program.
   Extraction "tests/readFile" read_file.
@@ -72,7 +76,7 @@ End ReadFile.
 Module EchoServer.
   Definition port : N := 5 % N.
 
-  Definition program : C.t [] unit :=
+  Definition program (argv : list string) : C.t [] unit :=
     ServerSocket.bind port (fun client_id =>
       match client_id with
       | None =>

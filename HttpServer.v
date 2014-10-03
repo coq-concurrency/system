@@ -56,33 +56,40 @@ Server: Coq
 
 404".
 
-Definition program : C.t [] unit :=
-  Log.write "Coq server:" (fun _ =>
-  ServerSocket.bind 80 (fun client =>
-    match client with
-    | None => Log.write "Server socket failed." (fun _ => C.Exit tt)
-    | Some client =>
-      do! Log.write "Client connected." (fun _ => C.Ret tt) in
-      ClientSocket.read client (fun request =>
-      match option_map parse request with
-      | None | Some None => C.Ret tt
-      | Some (Some (Method.Get, url)) =>
-        do! Log.write ("Reading file: '" ++ url ++ "'") (fun _ => C.Ret tt) in
-        File.read url (fun content =>
-        let answer := match content with
-          | None => http_answer_error
-          | Some content => http_answer_OK content
-          end in
-        ClientSocket.write client answer (fun _ =>
-        ClientSocket.close client (fun is_closed =>
-          let message := 
-            if is_closed then
-              "Client closed."
-            else
-              "Client cannot be closed." in
-            Log.write message (fun _ => C.Ret tt))))
-      end)
-    end)).
+Definition program (argv : list string) : C.t [] unit :=
+  match argv with
+  | [_; website_dir] =>
+    Log.write ("Coq server starting on " ++ website_dir ++ ".") (fun _ =>
+    ServerSocket.bind 80 (fun client =>
+      match client with
+      | None => Log.write "Server socket failed." (fun _ => C.Exit tt)
+      | Some client =>
+        do! Log.write "Client connected." (fun _ => C.Ret tt) in
+        ClientSocket.read client (fun request =>
+        match option_map parse request with
+        | None | Some None => C.Ret tt
+        | Some (Some (Method.Get, url)) =>
+          let file_name := website_dir ++ url in
+          do! Log.write ("Reading file: '" ++ file_name ++ "'") (fun _ => C.Ret tt) in
+          File.read file_name (fun content =>
+          let answer := match content with
+            | None => http_answer_error
+            | Some content => http_answer_OK content
+            end in
+          ClientSocket.write client answer (fun _ =>
+          ClientSocket.close client (fun is_closed =>
+            let message := 
+              if is_closed then
+                "Client closed."
+              else
+                "Client cannot be closed." in
+              Log.write message (fun _ => C.Ret tt))))
+        end)
+      end))
+  | _ =>
+    Log.write "Exactly one parameter expected: the website folder." (fun _ =>
+    C.Exit tt)
+  end.
 
 (** Extraction. *)
 Require Import Extraction.
