@@ -7,13 +7,13 @@ RUN apt-get install -y gcc make git
 # Opam
 RUN apt-get install -y opam
 RUN opam init
+ENV OPAMJOBS 4
 RUN opam install -y coq
 
 # The Coq repository
-RUN v=1 opam repo add coq https://github.com/coq/opam-coq-repo.git
-ENV OPAMJOBS 4
+RUN opam repo add coq https://github.com/coq/opam-coq-repo.git
 
-# coq-list-string
+# Dependencies
 RUN opam install -y coq-list-string
 
 # Build
