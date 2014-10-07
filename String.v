@@ -1,7 +1,7 @@
 (** Some helper functions to manipulate strings. *)
 Require Import Coq.Lists.List.
-Require Import Coq.Strings.String.
 Require Import Coq.Strings.Ascii.
+Require Import Coq.Strings.String.
 
 Import ListNotations.
 Open Local Scope string.
@@ -50,6 +50,6 @@ Module Tests.
 
   Definition test3 : reverse "hello" = "olleh" := eq_refl.
 
-  Definition tes4 : split "go stop go" " " = ["go"; "stop"; "go"] := eq_refl.
+  Definition test4 : split "go stop go" " " = ["go"; "stop"; "go"] := eq_refl.
   Definition test5 : split "grr" " " = ["grr"] := eq_refl.
 End Tests.
