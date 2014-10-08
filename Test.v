@@ -3,10 +3,10 @@ Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.String.
 Require Import ListString.ListString.
-Require Import Computation.
-Require Import Events.
-Require Import Extraction.
-Require Import StdLib.
+Require Import "Computation".
+Require Import "Events".
+Require Import "Extraction".
+Require Import "StdLib".
 
 Import ListNotations.
 Import C.Notations.

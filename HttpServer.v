@@ -2,9 +2,9 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.String.
 Require Import ListString.ListString.
-Require Import Computation.
-Require Import Events.
-Require Import StdLib.
+Require Import "Computation".
+Require Import "Events".
+Require Import "StdLib".
 
 Import ListNotations.
 Import C.Notations.

@@ -6,9 +6,9 @@ Require Import Coq.Strings.String.
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlBigIntConv.
 Require Import ListString.ListString.
-Require Import Computation.
-Require Import Events.
-Require Import Run.
+Require Import "Computation".
+Require Import "Events".
+Require Import "Run".
 
 Import ListNotations.
 Open Local Scope string.

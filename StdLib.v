@@ -2,8 +2,8 @@
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import ListString.ListString.
-Require Import Computation.
-Require Import Events.
+Require Import "Computation".
+Require Import "Events".
 
 Import ListNotations.
 
