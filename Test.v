@@ -2,6 +2,7 @@
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.String.
+Require Import ListString.ListString.
 Require Import Computation.
 Require Import Events.
 Require Import Extraction.
@@ -13,7 +14,7 @@ Open Local Scope string.
 
 (** Do nothing. *)
 Module DoNothing.
-  Definition program (argv : list string) : C.t [] unit :=
+  Definition program (argv : list ListString.t) : C.t [] unit :=
     C.Exit tt.
 
   Definition test1 :
@@ -27,25 +28,25 @@ End DoNothing.
 
 (** Say hello. *)
 Module HelloWorld.
-  Definition program (argv : list string) : C.t [] unit :=
-    Log.write "Hello" (fun _ =>
-    Log.write "world!" (fun _ =>
+  Definition program (argv : list ListString.t) : C.t [] unit :=
+    Log.write (ListString.s "Hello") (fun _ =>
+    Log.write (ListString.s "world!") (fun _ =>
     C.Exit tt)).
 
   Definition test1 : Run.run_on_inputs _ (program []) Memory.Nil [
     Input.New Command.Log 1 true;
     Input.New Command.Log 2 true ] =
     (true, [
-      Output.New Command.Log 2 "world!";
-      Output.New Command.Log 1 "Hello" ]) :=
+      Output.New Command.Log 2 (ListString.s "world!");
+      Output.New Command.Log 1 (ListString.s "Hello") ]) :=
     eq_refl.
 
   Definition test2 : Run.run_on_inputs _ (program []) Memory.Nil [
     Input.New Command.Log 2 true;
     Input.New Command.Log 1 true ] =
     (false, [
-      Output.New Command.Log 2 "world!";
-      Output.New Command.Log 1 "Hello" ]) :=
+      Output.New Command.Log 2 (ListString.s "world!");
+      Output.New Command.Log 1 (ListString.s "Hello") ]) :=
     eq_refl.
 
   Definition hello_world := Extraction.run _ Memory.Nil program.
@@ -54,17 +55,17 @@ End HelloWorld.
 
 (** Print the content of a file. *)
 Module ReadFile.
-  Definition program (argv : list string) : C.t [] unit :=
+  Definition program (argv : list ListString.t) : C.t [] unit :=
     match argv with
     | [_; file_name] =>
       File.read file_name (fun content =>
       let message := match content with
-        | None => "Error: cannot read the file."
+        | None => (ListString.s "Error: cannot read the file.")
         | Some content => content
         end in
       Log.write message (fun _ => C.Exit tt))
     | _ =>
-      Log.write "One parameter (the file to read) expected." (fun _ =>
+      Log.write (ListString.s "One parameter (the file to read) expected.") (fun _ =>
       C.Exit tt)
     end.
 
@@ -76,11 +77,11 @@ End ReadFile.
 Module EchoServer.
   Definition port : N := 5 % N.
 
-  Definition program (argv : list string) : C.t [] unit :=
+  Definition program (argv : list ListString.t) : C.t [] unit :=
     ServerSocket.bind port (fun client_id =>
       match client_id with
       | None =>
-        do! Log.write "Server socket failed." (fun _ => C.Ret tt) in
+        do! Log.write (ListString.s "Server socket failed.") (fun _ => C.Ret tt) in
         C.Exit tt
       | Some client_id =>
         ClientSocket.read client_id (fun content =>

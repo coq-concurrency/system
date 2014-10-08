@@ -2,12 +2,10 @@
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.PArith.PArith.
-Require Import Coq.Strings.String.
-Require Import String.
+Require Import ListString.ListString.
 
 Import ListNotations.
 Open Local Scope type.
-Open Local Scope string.
 
 Module ClientSocketId.
   Inductive t : Set :=
@@ -24,11 +22,11 @@ Module Command.
   (** The type of the parameters of a request. *)
   Definition request (command : t) : Set :=
     match command with
-    | Log => string
-    | FileRead => string
+    | Log => ListString.t
+    | FileRead => ListString.t
     | ServerSocketBind => N
     | ClientSocketRead => ClientSocketId.t
-    | ClientSocketWrite => ClientSocketId.t * string
+    | ClientSocketWrite => ClientSocketId.t * ListString.t
     | ClientSocketClose => ClientSocketId.t
     end.
 
@@ -36,9 +34,9 @@ Module Command.
   Definition answer (command : t) : Set :=
     match command with
     | Log => bool
-    | FileRead => option string
+    | FileRead => option ListString.t
     | ServerSocketBind => option ClientSocketId.t
-    | ClientSocketRead => option string
+    | ClientSocketRead => option ListString.t
     | ClientSocketWrite => bool
     | ClientSocketClose => bool
     end.
@@ -49,12 +47,6 @@ Module Command.
       try (left; congruence);
       try (right; congruence).
   Defined.
-
-  Definition eqb (command1 command2 : t) : bool :=
-    if eq_dec command1 command2 then
-      true
-    else
-      false.
 End Command.
 
 Module Input.

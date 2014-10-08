@@ -10,14 +10,20 @@ RUN opam init
 ENV OPAMJOBS 4
 RUN opam install -y coq
 
+# Tools
+RUN apt-get install -y inotify-tools
+
 # The Coq repository
 RUN opam repo add coq https://github.com/coq/opam-coq-repo.git
 
 # Dependencies
-RUN opam install -y coq-list-string
+# RUN opam install -y coq-list-string
+WORKDIR /root
+RUN git clone https://github.com/clarus/coq-list-string.git
+WORKDIR coq-list-string
+RUN eval `opam config env`; ./configure.sh && make -j && make install
 
 # Build
 ADD . /root/coq-concurrency
 WORKDIR /root/coq-concurrency
-RUN eval `opam config env`; ./configure.sh
-RUN eval `opam config env`; make -j
+CMD eval `opam config env`; while inotifywait *.v; do make; done
