@@ -13,15 +13,16 @@ RUN opam install -y coq
 # Tools
 RUN apt-get install -y inotify-tools
 
-# The Coq repository
+# Stable dependencies
 RUN opam repo add coq https://github.com/coq/opam-coq-repo.git
 
-# Dependencies
-# RUN opam install -y coq-list-string
-WORKDIR /root
-RUN git clone https://github.com/clarus/coq-list-string.git
-WORKDIR coq-list-string
-RUN eval `opam config env`; ./configure.sh && make -j && make install
+# Unstable dependencies
+RUN opam repo add coq-unstable https://github.com/coq/opam-coq-repo-unstable.git
+RUN opam install -y coq-list-string
+# WORKDIR /root
+# RUN git clone https://github.com/clarus/coq-list-string.git
+# WORKDIR coq-list-string
+# RUN eval `opam config env`; ./configure.sh && make -j && make install
 
 # Build
 ADD . /root/coq-concurrency
