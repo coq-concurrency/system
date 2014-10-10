@@ -5,7 +5,7 @@ Require Import Coq.PArith.PArith.
 Require Import Coq.Strings.String.
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlBigIntConv.
-Require Import ListString.ListString.
+Require Import LString.LString.
 Require Import "Computation".
 Require Import "Events".
 Require Import "Run".
@@ -26,7 +26,7 @@ Module Native.
     Parameter t : Set.
     Extract Constant t => "string".
 
-    Parameter to_string : t -> ListString.t.
+    Parameter to_string : t -> LString.t.
     Extract Constant to_string => "fun s ->
       let l = ref [] in
       for i = 0 to String.length s - 1 do
@@ -34,7 +34,7 @@ Module Native.
       done;
       List.rev !l".
 
-    Parameter of_string : ListString.t -> t.
+    Parameter of_string : LString.t -> t.
     Extract Constant of_string => "fun s ->
       List.fold_right (fun c s -> String.make 1 c ^ s) s """"".
 
@@ -114,26 +114,26 @@ End Native.
 Module Input.
   Definition import_command (command : Native.String.t) : option Command.t :=
     let command := Native.String.to_string command in
-    if ListString.eqb command (ListString.s "Log") then
+    if LString.eqb command (LString.s "Log") then
       Some Command.Log
-    else if ListString.eqb command (ListString.s "FileRead") then
+    else if LString.eqb command (LString.s "FileRead") then
       Some Command.FileRead
-    else if ListString.eqb command (ListString.s "ServerSocketBind") then
+    else if LString.eqb command (LString.s "ServerSocketBind") then
       Some Command.ServerSocketBind
-    else if ListString.eqb command (ListString.s "ClientSocketRead") then
+    else if LString.eqb command (LString.s "ClientSocketRead") then
       Some Command.ClientSocketRead
-    else if ListString.eqb command (ListString.s "ClientSocketWrite") then
+    else if LString.eqb command (LString.s "ClientSocketWrite") then
       Some Command.ClientSocketWrite
-    else if ListString.eqb command (ListString.s "ClientSocketClose") then
+    else if LString.eqb command (LString.s "ClientSocketClose") then
       Some Command.ClientSocketClose
     else
       None.
   
   Definition import_bool (b : Native.String.t) : option bool :=
     let b := Native.String.to_string b in
-    if ListString.eqb b (ListString.s "false") then
+    if LString.eqb b (LString.s "false") then
       Some false
-    else if ListString.eqb b (ListString.s "true") then
+    else if LString.eqb b (LString.s "true") then
       Some true
     else
       None.
@@ -144,7 +144,7 @@ Module Input.
   Definition import_N (n : Native.String.t) : option N :=
     option_map Native.BigInt.to_N (Native.BigInt.of_string n).
 
-  Definition import_string (s : Native.String.t) : ListString.t :=
+  Definition import_string (s : Native.String.t) : LString.t :=
     Native.String.to_string (Native.Base64.decode s).
 
   Definition import_option (s : Native.String.t) : option Native.String.t :=
@@ -153,17 +153,17 @@ Module Input.
     else
       Some s.
 
-  Definition import (input : Native.String.t) : Input.t + ListString.t :=
+  Definition import (input : Native.String.t) : Input.t + LString.t :=
     match Native.String.tokenize input with
     | command :: id :: arguments =>
       match (import_command command, import_positive id) with
-      | (None, _) => inr (ListString.s "Unknown command.")
-      | (_, None) => inr (ListString.s "Invalid id.")
+      | (None, _) => inr (LString.s "Unknown command.")
+      | (_, None) => inr (LString.s "Invalid id.")
       | (Some command, Some id) =>
         match (command, arguments) with
         | (Command.Log, [is_success]) =>
           match import_bool is_success with
-          | None => inr (ListString.s "Invalid boolean.")
+          | None => inr (LString.s "Invalid boolean.")
           | Some is_success => inl (Input.New Command.Log id is_success)
           end
         | (Command.FileRead, [content]) =>
@@ -174,7 +174,7 @@ Module Input.
           | None => inl (Input.New Command.ServerSocketBind id None)
           | Some client_id =>
             match import_N client_id with
-            | None => inr (ListString.s "Invalid client_id.")
+            | None => inr (LString.s "Invalid client_id.")
             | Some client_id =>
               let client_id := ClientSocketId.New client_id in
               inl (Input.New Command.ServerSocketBind id (Some client_id))
@@ -185,18 +185,18 @@ Module Input.
           inl (Input.New Command.ClientSocketRead id content)
         | (Command.ClientSocketWrite, [is_success]) =>
           match import_bool is_success with
-          | None => inr (ListString.s "Invalid boolean.")
+          | None => inr (LString.s "Invalid boolean.")
           | Some is_success => inl (Input.New Command.ClientSocketWrite id is_success)
           end
         | (Command.ClientSocketClose, [is_success]) =>
           match import_bool is_success with
-          | None => inr (ListString.s "Invalid boolean.")
+          | None => inr (LString.s "Invalid boolean.")
           | Some is_success => inl (Input.New Command.ClientSocketClose id is_success)
           end
-        | _ => inr (ListString.s "Wrong number of arguments.")
+        | _ => inr (LString.s "Wrong number of arguments.")
         end
       end
-    | _ => inr (ListString.s "The input must have at least two elements.")
+    | _ => inr (LString.s "The input must have at least two elements.")
     end.
 End Input.
 
@@ -205,13 +205,13 @@ Module Output.
   (** Concatenate with a space in between. *)
   Definition join (s1 s2 : Native.String.t) : Native.String.t :=
     Native.String.append (Native.String.append s1
-      (Native.String.of_string (ListString.s " "))) s2.
+      (Native.String.of_string (LString.s " "))) s2.
 
   Definition export_bool (b : bool) : Native.String.t :=
     if b then
-      Native.String.of_string (ListString.s "true")
+      Native.String.of_string (LString.s "true")
     else
-      Native.String.of_string (ListString.s "false").
+      Native.String.of_string (LString.s "false").
 
   Definition export_positive (n : positive) : Native.String.t :=
     Native.BigInt.to_string (Native.BigInt.of_positive n).
@@ -224,13 +224,13 @@ Module Output.
     | ClientSocketId.New client_id => export_N client_id
     end.
 
-  Definition export_string (s : ListString.t) : Native.String.t :=
+  Definition export_string (s : LString.t) : Native.String.t :=
     Native.Base64.encode (Native.String.of_string s).
 
   Definition export (output : Output.t) : Native.String.t :=
     let id := export_positive (Output.id output) in
     let start (s : string) :=
-      join (Native.String.of_string (ListString.s s)) id in
+      join (Native.String.of_string (LString.s s)) id in
     match output with
     | Output.New Command.Log _ message =>
       let message := export_string message in
@@ -250,9 +250,9 @@ Module Output.
 End Output.
 
 Definition run (sig : Signature.t) (mem : Memory.t sig)
-  (program : list ListString.t -> C.t sig unit) : unit :=
+  (program : list LString.t -> C.t sig unit) : unit :=
   let system := Native.Process.run (Native.String.of_string
-    (ListString.s "./systemProxy.native")) in
+    (LString.s "./systemProxy.native")) in
   let fix print_outputs outputs :=
     match outputs with
     | [] => tt
@@ -291,8 +291,8 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
               end
             | inr error_message =>
               let error_message :=
-                ListString.s "Input '" ++ Native.String.to_string input ++
-                ListString.s "'ignored: " ++ error_message in
+                LString.s "Input '" ++ Native.String.to_string input ++
+                LString.s "'ignored: " ++ error_message in
               Native.seq
                 (fun _ => Native.print_error (Native.String.of_string error_message))
                 (fun _ => Some state)

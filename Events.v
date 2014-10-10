@@ -2,7 +2,7 @@
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.PArith.PArith.
-Require Import ListString.ListString.
+Require Import LString.LString.
 
 Import ListNotations.
 Open Local Scope type.
@@ -22,11 +22,11 @@ Module Command.
   (** The type of the parameters of a request. *)
   Definition request (command : t) : Set :=
     match command with
-    | Log => ListString.t
-    | FileRead => ListString.t
+    | Log => LString.t
+    | FileRead => LString.t
     | ServerSocketBind => N
     | ClientSocketRead => ClientSocketId.t
-    | ClientSocketWrite => ClientSocketId.t * ListString.t
+    | ClientSocketWrite => ClientSocketId.t * LString.t
     | ClientSocketClose => ClientSocketId.t
     end.
 
@@ -34,9 +34,9 @@ Module Command.
   Definition answer (command : t) : Set :=
     match command with
     | Log => bool
-    | FileRead => option ListString.t
+    | FileRead => option LString.t
     | ServerSocketBind => option ClientSocketId.t
-    | ClientSocketRead => option ListString.t
+    | ClientSocketRead => option LString.t
     | ClientSocketWrite => bool
     | ClientSocketClose => bool
     end.

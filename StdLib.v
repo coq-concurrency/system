@@ -1,7 +1,7 @@
 (** The standard library. *)
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
-Require Import ListString.ListString.
+Require Import LString.LString.
 Require Import "Computation".
 Require Import "Events".
 
@@ -10,7 +10,7 @@ Import ListNotations.
 (** Log data. *)
 Module Log.
   (** Log a message on the standard output. *)
-  Definition write {sig : Signature.t} (message : ListString.t)
+  Definition write {sig : Signature.t} (message : LString.t)
     (call_back : bool -> C.t sig unit) : C.t sig unit :=
     C.Send Command.Log message call_back.
 End Log.
@@ -19,8 +19,8 @@ End Log.
 (** Read a file. *)
 Module File.
   (** Read all the content of a file. *)
-  Definition read {sig : Signature.t} (file_name : ListString.t)
-    (call_back : option ListString.t -> C.t sig unit) : C.t sig unit :=
+  Definition read {sig : Signature.t} (file_name : LString.t)
+    (call_back : option LString.t -> C.t sig unit) : C.t sig unit :=
     C.Send Command.FileRead file_name call_back.
 End File.
 
@@ -28,11 +28,11 @@ End File.
 Module ClientSocket.
   (** Read a message. *)
   Definition read {sig : Signature.t} (id : ClientSocketId.t)
-    (call_back : option ListString.t -> C.t sig unit) : C.t sig unit :=
+    (call_back : option LString.t -> C.t sig unit) : C.t sig unit :=
     C.Send Command.ClientSocketRead id call_back.
 
   (** Write a message. *)
-  Definition write {sig : Signature.t} (id : ClientSocketId.t) (data : ListString.t)
+  Definition write {sig : Signature.t} (id : ClientSocketId.t) (data : LString.t)
     (call_back : bool -> C.t sig unit) : C.t sig unit :=
     C.Send Command.ClientSocketWrite (id, data) call_back.
 
