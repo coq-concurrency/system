@@ -1,5 +1,6 @@
 (** A simple HTTP web server. *)
 Require Import Coq.Lists.List.
+Require Import Coq.Strings.Ascii.
 Require Import Coq.Strings.String.
 Require Import LString.LString.
 Require Import "Computation".
@@ -8,8 +9,34 @@ Require Import "StdLib".
 
 Import ListNotations.
 Import C.Notations.
-Open Local Scope string.
-Open Local Scope list.
+Local Open Scope type.
+Local Open Scope string.
+Local Open Scope char.
+Local Open Scope list.
+
+Definition apply {A B} (f : A -> B) (x : A) := f x.
+Notation " x |> f " := (apply f x)
+  (at level 40, left associativity).
+Notation " f @@ x " := (apply f x)
+  (at level 42, right associativity).
+
+Module Option.
+  Definition bind (A B : Type) (x : option A) (f : A -> option B) : option B :=
+    match x with
+    | Some x => f x
+    | None => None
+    end.
+  Arguments bind [A B] _ _.
+End Option.
+
+Module Sum.
+  Definition bind (E A B : Type) (x : A + E) (f : A -> B + E) : B + E :=
+    match x with
+    | inl x => f x
+    | inr e => inr e
+    end.
+  Arguments bind [E A B] _ _.
+End Sum.
 
 (** The kind of HTTP method. *)
 Module Method.
@@ -17,12 +44,100 @@ Module Method.
   Inductive t : Set :=
   | Get : t.
 
-  Definition of_string (method : LString.t) : option t :=
+  Definition of_string (method : LString.t) : t + LString.t :=
     if LString.eqb method (LString.s "GET") then
-      Some Get
+      inl Get
     else
-      None.
+      inr (LString.s "unknown method " ++ method).
 End Method.
+
+Module Command.
+  Definition t : Set := Method.t * LString.t * LString.t.
+
+  Definition parse (command : LString.t) : t + LString.t :=
+    match List.map LString.trim (LString.split (LString.trim command) " ") with
+    | [method; arg1; arg2] =>
+      Sum.bind (Method.of_string method) (fun method =>
+      inl (method, arg1, arg2))
+    | _ => inr @@ LString.s "three elements expected"
+    end.
+End Command.
+
+Module Header.
+  Module Kind.
+    Inductive t : Set :=
+    | Host : t.
+
+    Definition of_string (kind : LString.t) : t + LString.t :=
+      let kind := LString.down_case kind in
+      if LString.eqb kind (LString.s "host") then
+        inl Host
+      else
+        inr (LString.s "unknown header kind " ++ kind).
+  End Kind.
+
+  Record t : Set := New {
+    kind : Kind.t;
+    value : LString.t }.
+
+  Definition parse (header : LString.t) : option t + LString.t :=
+    match List.map LString.trim (LString.split_limit header ":" 2) with
+    | [kind; value] =>
+      match Kind.of_string kind with
+      | inl kind => inl @@ Some @@ New kind value
+      | inr _ => inl None
+      end
+    | _ => inr @@ LString.s "two elements expected"
+    end.
+End Header.
+
+Module Request.
+  Record t : Set := New {
+    command : Command.t;
+    headers : list Header.t;
+    body : LString.t }.
+
+  Fixpoint parse_aux (command : Command.t) (headers : list Header.t)
+    (lines : list LString.t) : t + LString.t :=
+    match lines with
+    | [] => inr @@ LString.s "empty line expected"
+    | line :: lines =>
+      let line := LString.trim line in
+      if LString.is_empty line then
+        let body := List.fold_left (fun s1 s2 =>
+          s1 ++ LString.Char.n :: s2)
+          lines [] in
+        inl @@ New command headers body
+      else
+        Sum.bind (Header.parse line) (fun header =>
+        let headers :=
+          match header with
+          | None => headers
+          | Some header => header :: headers
+          end in
+        parse_aux command headers lines)
+    end.
+
+  Definition parse (request : LString.t) : t + LString.t :=
+    let lines := LString.split request LString.Char.n in
+    match lines with
+    | [] => inr @@ LString.s "the request is empty"
+    | command :: lines =>
+      Sum.bind (Command.parse command) (fun command =>
+      parse_aux command [] lines)
+    end.
+
+  Definition test_parse : parse @@ LString.s "GET /page.html HTTP/1.0
+Host: example.com
+Referer: http://example.com/
+User-Agent: CERN-LineMode/2.15 libwww/2.17b3
+
+" = inl {|
+      command := (Method.Get, LString.s "/page.html", LString.s "HTTP/1.0");
+      headers := [Header.New Header.Kind.Host (LString.s "example.com")];
+      body := [LString.Char.n] |} :=
+    eq_refl.
+End Request.
 
 (** Parse an HTTP request. *)
 Definition parse (request : LString.t) : option (Method.t * LString.t) :=

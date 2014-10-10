@@ -5,7 +5,7 @@ Require Import Coq.PArith.PArith.
 Require Import LString.LString.
 
 Import ListNotations.
-Open Local Scope type.
+Local Open Scope type.
 
 Module ClientSocketId.
   Inductive t : Set :=

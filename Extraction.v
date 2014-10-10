@@ -11,8 +11,8 @@ Require Import "Events".
 Require Import "Run".
 
 Import ListNotations.
-Open Local Scope string.
-Open Local Scope list.
+Local Open Scope string.
+Local Open Scope list.
 
 Module Native.
   (** Sequence two instructions. *)

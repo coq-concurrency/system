@@ -18,7 +18,7 @@ RUN opam repo add coq https://github.com/coq/opam-coq-repo.git
 
 # Unstable dependencies
 RUN opam repo add coq-unstable https://github.com/coq/opam-coq-repo-unstable.git
-RUN v=1 opam install -y coq-list-string
+RUN v=3 opam install -y coq-list-string
 # WORKDIR /root
 # RUN git clone https://github.com/clarus/coq-list-string.git
 # WORKDIR coq-list-string

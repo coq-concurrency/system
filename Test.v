@@ -10,7 +10,7 @@ Require Import "StdLib".
 
 Import ListNotations.
 Import C.Notations.
-Open Local Scope string.
+Local Open Scope string.
 
 (** Do nothing. *)
 Module DoNothing.

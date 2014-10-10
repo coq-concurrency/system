@@ -4,7 +4,7 @@ Require Import "Computation".
 Require Import "Events".
 
 Import ListNotations.
-Open Local Scope type.
+Local Open Scope type.
 
 Module Heap.
   Inductive t (A : Type) : Type :=
