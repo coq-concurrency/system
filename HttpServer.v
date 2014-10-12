@@ -210,7 +210,7 @@ Definition program (argv : list LString.t) : C.t [] unit :=
     C.Exit tt)
   end.
 
-(** Extraction. *)
+(** * Extraction. *)
 Require Import Extraction.
 
 Definition http_server := Extraction.run _ Memory.Nil program.
