@@ -139,25 +139,6 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3
     eq_refl.
 End Request.
 
-(** Parse an HTTP request. *)
-Definition parse (request : LString.t) : option (Method.t * LString.t) :=
-  let items := LString.split request " " in
-  match items with
-  | method :: url :: _ =>
-    match Method.of_string method with
-    | Some method => Some (method, url)
-    | _ => None
-    end
-  | _ => None
-  end.
-
-Definition test_parse : parse (LString.s "GET /page.html HTTP/1.0
-Host: example.com
-Referer: http://example.com/
-User-Agent: CERN-LineMode/2.15 libwww/2.17b3") =
-  Some (Method.Get, LString.s "/page.html") :=
-  eq_refl.
-
 Definition http_answer_OK (content : LString.t) : LString.t :=
   LString.s "HTTP/1.0 200 Not Found
 Content-Type: text/plain
