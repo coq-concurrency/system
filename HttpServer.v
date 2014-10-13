@@ -16,6 +16,18 @@ Local Open Scope string.
 Local Open Scope char.
 Local Open Scope list.
 
+Module MimeType.
+  Inductive t : Set :=
+  | TextPlain : t
+  | TextHtml : t.
+
+  Definition to_string (mime_type : t) : LString.t :=
+    match mime_type with
+    | TextPlain => LString.s "text/plain"
+    | TextHtml => LString.s "text/html"
+    end.
+End MimeType.
+
 Module Request.
   (** The kind of HTTP method. *)
   Module Method.
@@ -170,21 +182,23 @@ Module Answer.
       Status.to_string (status answer) ::
       List.map Header.to_string (headers answer) ++
       [LString.s ""; body answer]).
+
+  Definition ok (mime_type : MimeType.t) (content : LString.t) : t := {|
+    status := Status.OK;
+    headers := [
+      Header.New Header.Kind.ContentType (MimeType.to_string mime_type);
+      Header.New Header.Kind.ContentLength (LString.of_nat_10 @@ List.length content)];
+    body := content |}.
+
+  Definition error : t :=
+    let content := LString.s "404: not found." in
+    {|
+      status := Status.NotFound;
+      headers := [
+        Header.New Header.Kind.ContentType (MimeType.to_string MimeType.TextPlain);
+        Header.New Header.Kind.ContentLength (LString.of_nat_10 @@ List.length content)];
+      body := content |}.
 End Answer.
-
-Definition http_answer_OK (content : LString.t) : LString.t :=
-  LString.s "HTTP/1.0 200 OK
-Content-Type: text/plain
-Server: Coq
-
-" ++ content.
-
-Definition http_answer_error : LString.t :=
-  LString.s "HTTP/1.0 404 Not found
-Content-Type: text/plain
-Server: Coq
-
-404".
 
 Definition handle_client (website_dir : LString.t) (client : ClientSocketId.t)
   : C.t [] unit :=
@@ -201,9 +215,9 @@ Definition handle_client (website_dir : LString.t) (client : ClientSocketId.t)
         do! Log.write (LString.s "Reading file: '" ++ file_name ++
           LString.s "'") (fun _ => C.Ret tt) in
         File.read file_name (fun content =>
-        let answer := match content with
-          | None => http_answer_error
-          | Some content => http_answer_OK content
+        let answer := Answer.to_string @@ match content with
+          | None => Answer.error
+          | Some content => Answer.ok MimeType.TextHtml content
           end in
         ClientSocket.write client answer (fun _ =>
         ClientSocket.close client (fun is_closed =>
