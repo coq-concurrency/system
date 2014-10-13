@@ -274,18 +274,26 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
           Native.Process.fold_lines _ system state (fun state input =>
             let (call_backs, mem) := state in
             match Input.import input with
-            | inl input =>
-              match Run.call_back _ call_backs input with
+            | inl (Input.New command id argument) =>
+              match CallBacks.find _ call_backs command id with
               | None => Some state
-              | Some call_back =>
-                match Run.run _ _ call_backs mem [] call_back with
+              | Some (CallBack.New _ a handler) =>
+                match Run.run _ _ call_backs mem [] (handler a argument) with
                 | (result, call_backs, mem, outputs) =>
                   Native.seq
                     (fun _ => print_outputs outputs)
                     (fun _ =>
                       match result with
                       | None => None
-                      | Some _ => Some (call_backs, mem)
+                      | Some a =>
+                        let call_backs :=
+                          match a with
+                          | None => call_backs
+                          | Some a =>
+                            let call_back := CallBack.New _ command _ a handler in
+                            CallBacks.update _ call_backs id command call_back
+                          end in
+                        Some (call_backs, mem)
                       end)
                 end
               end

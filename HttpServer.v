@@ -165,10 +165,10 @@ Server: Coq
 
 Definition handle_client (client : ClientSocketId.t) : C.t [] unit :=
   do! Log.write (LString.s "Client connected.") (fun _ => C.Ret tt) in
-  ClientSocket.read client (fun request =>
+  ClientSocket.read client tt (fun _ request =>
   match request with
-  | None => C.Ret tt
-  | Some line => C.Ret tt
+  | None => C.Ret None
+  | Some line => C.Ret None
   end).
 
 (*Definition handle_client (client : ClientSocketId.t) : C.t [] unit :=

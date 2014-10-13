@@ -135,11 +135,11 @@ Fixpoint run_call_backs (sig : Signature.t) (call_backs : CallBacks.t sig)
     match CallBacks.find _ call_backs command id with
     | None => run_call_backs _ call_backs mem outputs inputs
     | Some (CallBack.New _ a handler) =>
-      let x := handler a argument in
-      match run _ _ call_backs mem outputs x with
+      match run _ _ call_backs mem outputs (handler a argument) with
       | (None, _, _, outputs) => (true, outputs)
       | (Some a, call_backs, mem, outputs) =>
-        let call_backs := match a with
+        let call_backs :=
+          match a with
           | None => call_backs
           | Some a =>
             let call_back := CallBack.New _ command _ a handler in

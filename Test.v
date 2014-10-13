@@ -74,12 +74,13 @@ Module EchoServer.
         do! Log.write (LString.s "Server socket failed.") (fun _ => C.Ret tt) in
         C.Exit tt
       | Some client_id =>
-        ClientSocket.read client_id (fun content =>
+        ClientSocket.read client_id tt (fun _ content =>
         match content with
-        | None => C.Ret tt
+        | None => C.Ret None
         | Some content =>
-          ClientSocket.write client_id content (fun _ =>
-          Log.write content (fun _ => C.Ret tt))
+          do! ClientSocket.write client_id content (fun _ =>
+            Log.write content (fun _ => C.Ret tt)) in
+          C.Ret None
         end)
       end).
 End EchoServer.
