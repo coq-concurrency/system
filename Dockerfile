@@ -27,4 +27,4 @@ WORKDIR /root/coq-concurrency
 RUN eval `opam config env`; ./configure.sh && make
 
 # Continuous build
-CMD eval `opam config env`; while inotifywait *.v; do make; done
+CMD eval `opam config env`; ./configure.sh && while inotifywait *.v; do make; done
