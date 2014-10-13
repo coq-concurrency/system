@@ -153,6 +153,48 @@ Server: Coq
 
 404".
 
+(*Fixpoint read_socket (A : Type) (f : A -> LString.t -> C.t [] A)
+  (c : A -> C.t [] unit) (a : A) (client : ClientSocketId.t) : C.t [] unit :=
+  C.Send Command.ClientSocketRead client (fun request =>
+  match request with
+  | None => c a
+  | Some line =>
+    let! a := f a line in
+    read_socket _ f c a client
+  end).*)
+
+Definition handle_client (client : ClientSocketId.t) : C.t [] unit :=
+  do! Log.write (LString.s "Client connected.") (fun _ => C.Ret tt) in
+  ClientSocket.read client (fun request =>
+  match request with
+  | None => C.Ret tt
+  | Some line => C.Ret tt
+  end).
+
+(*Definition handle_client (client : ClientSocketId.t) : C.t [] unit :=
+  do! Log.write (LString.s "Client connected.") (fun _ => C.Ret tt) in
+  ClientSocket.read client (fun request =>
+  match option_map parse request with
+  | None | Some None => C.Ret tt
+  | Some (Some (Method.Get, url)) =>
+    let file_name := website_dir ++ url in
+    do! Log.write (LString.s "Reading file: '" ++ file_name ++
+      LString.s "'") (fun _ => C.Ret tt) in
+    File.read file_name (fun content =>
+    let answer := match content with
+      | None => http_answer_error
+      | Some content => http_answer_OK content
+      end in
+    ClientSocket.write client answer (fun _ =>
+    ClientSocket.close client (fun is_closed =>
+      let message := 
+        if is_closed then
+          LString.s "Client closed."
+        else
+          LString.s "Client cannot be closed." in
+        Log.write message (fun _ => C.Ret tt))))
+  end).*)
+
 Definition program (argv : list LString.t) : C.t [] unit :=
   match argv with
   | [_; website_dir] =>
@@ -162,29 +204,7 @@ Definition program (argv : list LString.t) : C.t [] unit :=
       match client with
       | None =>
         Log.write (LString.s "Server socket failed.") (fun _ => C.Exit tt)
-      | Some client =>
-        do! Log.write (LString.s "Client connected.") (fun _ => C.Ret tt) in
-        ClientSocket.read client (fun request =>
-        match option_map parse request with
-        | None | Some None => C.Ret tt
-        | Some (Some (Method.Get, url)) =>
-          let file_name := website_dir ++ url in
-          do! Log.write (LString.s "Reading file: '" ++ file_name ++
-            LString.s "'") (fun _ => C.Ret tt) in
-          File.read file_name (fun content =>
-          let answer := match content with
-            | None => http_answer_error
-            | Some content => http_answer_OK content
-            end in
-          ClientSocket.write client answer (fun _ =>
-          ClientSocket.close client (fun is_closed =>
-            let message := 
-              if is_closed then
-                LString.s "Client closed."
-              else
-                LString.s "Client cannot be closed." in
-              Log.write message (fun _ => C.Ret tt))))
-        end)
+      | Some client => handle_client client
       end))
   | _ =>
     Log.write (LString.s "Exactly one parameter expected: the website folder.") (fun _ =>

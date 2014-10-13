@@ -29,6 +29,14 @@ Module Heap.
     | (Node x _ heap, xI n) => find A heap n
     end.
 
+  Fixpoint update (A : Type) (heap : t A) (n : positive) (x : A) : t A :=
+    match (heap, n) with
+    | (Empty, _) => heap
+    | (Node _ heap1 heap2, xH) => Node x heap1 heap2
+    | (Node y heap1 heap2, xO n) => Node y (update _ heap1 n x) heap2
+    | (Node y heap1 heap2, xI n) => Node y heap1 (update _ heap2 n x)
+    end.
+
   Module Tests.
     Definition h :=
       let h := add _ Empty 1 1 in
@@ -46,12 +54,24 @@ Module Heap.
 
     Definition test3 : find _ h 3 = Some 3 :=
       eq_refl.
+
+    Definition test4 : update _ h 3 7 =
+      Node 1 (Node 2 (Node 4 Empty Empty) Empty)
+        (Node 7 (Node 5 Empty Empty) Empty) :=
+      eq_refl.
   End Tests.
 End Heap.
 
+Module CallBack.
+  Record t (sig : Signature.t) (command : Command.t) : Type := New {
+    A : Type;
+    a : A;
+    handler : A -> Command.answer command -> C.t sig (option A) }.
+End CallBack.
+
 Module CallBacks.
   Record t (sig : Signature.t) : Type := New {
-    heap : Heap.t {command : Command.t & Command.answer command -> C.t sig unit};
+    heap : Heap.t {command : Command.t & CallBack.t sig command};
     next : positive }.
 
   Definition empty (sig : Signature.t) : t sig := {|
@@ -59,24 +79,28 @@ Module CallBacks.
     next := xH |}.
 
   Definition add (sig : Signature.t) (call_backs : t sig) (command : Command.t)
-    (call_back : Command.answer command -> C.t sig unit) : positive * t sig :=
+    (call_back : CallBack.t sig command) : positive * t sig :=
     let id := next _ call_backs in
     (id, {|
       heap := Heap.add _ (heap _ call_backs) (existT _ command call_back) id;
       next := id + 1 |}).
 
   Definition find (sig : Signature.t) (call_backs : t sig) (command : Command.t)
-    (id : positive) : option (Command.answer command -> C.t sig unit) :=
+    (id : positive) : option (CallBack.t sig command) :=
     match Heap.find _ (heap _ call_backs) id with
     | None => None
     | Some (existT command' call_back) =>
       match Command.eq_dec command command' with
       | left Heq =>
-          eq_rect_r (fun c => option (Command.answer c -> C.t sig unit))
-            (Some call_back) Heq
+          eq_rect_r (fun c => option (CallBack.t sig c)) (Some call_back) Heq
       | right _ => None
       end
     end.
+
+  Definition update (sig : Signature.t) (call_backs : t sig) (id : positive)
+    (command : Command.t) (call_back : CallBack.t sig command) : t sig := {|
+    heap := Heap.update _ (heap _ call_backs) id (existT _ command call_back);
+    next := next _ call_backs |}.
 End CallBacks.
 
 (** Run a computation on an initialized shared memory. *)
@@ -93,19 +117,12 @@ Fixpoint run (sig : Signature.t) (A : Type) (call_backs : CallBacks.t sig)
     end
   | C.Read _ _ => (Some (Ref.read mem), call_backs, mem, outputs)
   | C.Write _ _ v => (Some tt, call_backs, Ref.write mem v, outputs)
-  | C.Send command request call_back =>
+  | C.Send _ command request a handler =>
+    let call_back := CallBack.New _ command _ a handler in
     let (id, call_backs) := CallBacks.add _ call_backs command call_back in
     let output := Output.New command id request in
     (Some tt, call_backs, mem, output :: outputs)
   | C.Exit _ => (None, call_backs, mem, outputs)
-  end.
-
-Definition call_back (sig : Signature.t) (call_backs : CallBacks.t sig)
-  (input : Input.t) : option (C.t sig unit) :=
-  let (command, id, argument) := input in
-  match CallBacks.find _ call_backs command id with
-  | None => None
-  | Some call_back => Some (call_back argument)
   end.
 
 Fixpoint run_call_backs (sig : Signature.t) (call_backs : CallBacks.t sig)
@@ -114,12 +131,20 @@ Fixpoint run_call_backs (sig : Signature.t) (call_backs : CallBacks.t sig)
   match inputs with
   | [] => (false, outputs)
   | input :: inputs =>
-    match call_back _ call_backs input with
+    let (command, id, argument) := input in
+    match CallBacks.find _ call_backs command id with
     | None => run_call_backs _ call_backs mem outputs inputs
-    | Some call_back =>
-      match run _ _ call_backs mem outputs call_back with
+    | Some (CallBack.New _ a handler) =>
+      let x := handler a argument in
+      match run _ _ call_backs mem outputs x with
       | (None, _, _, outputs) => (true, outputs)
-      | (Some _, call_backs, mem, outputs) =>
+      | (Some a, call_backs, mem, outputs) =>
+        let call_backs := match a with
+          | None => call_backs
+          | Some a =>
+            let call_back := CallBack.New _ command _ a handler in
+            CallBacks.update _ call_backs id command call_back
+          end in
         run_call_backs _ call_backs mem outputs inputs
       end
     end

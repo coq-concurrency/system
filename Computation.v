@@ -55,14 +55,14 @@ Module C.
   | Bind : forall (A B : Type), t sig A -> (A -> t sig B) -> t sig B
   | Read : forall (A : Type), `{Ref.C A sig} -> t sig A
   | Write : forall (A : Type), `{Ref.C A sig} -> A -> t sig unit
-  | Send : forall (command : Command.t), Command.request command ->
-    (Command.answer command -> t sig unit) -> t sig unit
+  | Send : forall (A : Type) (command : Command.t), Command.request command ->
+    A -> (A -> Command.answer command -> t sig (option A)) -> t sig unit
   | Exit : unit -> t sig unit.
   Arguments Ret [sig A] _.
   Arguments Bind [sig A B] _ _.
   Arguments Read [sig A] {_}.
   Arguments Write [sig A] {_} _.
-  Arguments Send [sig] _ _ _.
+  Arguments Send [sig A] _ _ _ _.
   Arguments Exit [sig] _.
 
   (** Monadic notation. *)
