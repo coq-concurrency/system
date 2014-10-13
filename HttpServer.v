@@ -2,6 +2,7 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Strings.String.
+Require Import ErrorHandlers.All.
 Require Import FunCombinators.All.
 Require Import LString.LString.
 Require Import "Computation".
@@ -15,50 +16,32 @@ Local Open Scope string.
 Local Open Scope char.
 Local Open Scope list.
 
-Module Option.
-  Definition bind (A B : Type) (x : option A) (f : A -> option B) : option B :=
-    match x with
-    | Some x => f x
-    | None => None
-    end.
-  Arguments bind [A B] _ _.
-End Option.
-
-Module Sum.
-  Definition bind (E A B : Type) (x : A + E) (f : A -> B + E) : B + E :=
-    match x with
-    | inl x => f x
-    | inr e => inr e
-    end.
-  Arguments bind [E A B] _ _.
-End Sum.
-
-(** The kind of HTTP method. *)
-Module Method.
-  (** For now, only the GET method is handled. *)
-  Inductive t : Set :=
-  | Get : t.
-
-  Definition of_string (method : LString.t) : t + LString.t :=
-    if LString.eqb method (LString.s "GET") then
-      inl Get
-    else
-      inr (LString.s "unknown method " ++ method).
-End Method.
-
-Module Command.
-  Definition t : Set := Method.t * LString.t * LString.t.
-
-  Definition parse (command : LString.t) : t + LString.t :=
-    match List.map LString.trim (LString.split (LString.trim command) " ") with
-    | [method; arg1; arg2] =>
-      Sum.bind (Method.of_string method) (fun method =>
-      inl (method, arg1, arg2))
-    | _ => inr @@ LString.s "three elements expected"
-    end.
-End Command.
-
 Module Request.
+  (** The kind of HTTP method. *)
+  Module Method.
+    (** For now, only the GET method is handled. *)
+    Inductive t : Set :=
+    | Get : t.
+
+    Definition of_string (method : LString.t) : t + LString.t :=
+      if LString.eqb method (LString.s "GET") then
+        inl Get
+      else
+        inr (LString.s "unknown method " ++ method).
+  End Method.
+
+  Module Command.
+    Definition t : Set := Method.t * LString.t * LString.t.
+
+    Definition parse (command : LString.t) : t + LString.t :=
+      match List.map LString.trim (LString.split (LString.trim command) " ") with
+      | [method; arg1; arg2] =>
+        Sum.bind (Method.of_string method) (fun method =>
+        inl (method, arg1, arg2))
+      | _ => inr @@ LString.s "three elements expected"
+      end.
+  End Command.
+
   Module Header.
     Module Kind.
       Inductive t : Set :=
@@ -135,6 +118,58 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3
 End Request.
 
 Module Answer.
+  Module Status.
+    Inductive t : Set :=
+    | OK : t
+    | NotFound : t.
+
+    Definition code (status : t) : LString.t :=
+      match status with
+      | OK => LString.s "200"
+      | NotFound => LString.s "404"
+      end.
+
+    Definition message (status : t) : LString.t :=
+      match status with
+      | OK => LString.s "OK"
+      | NotFound => LString.s "Not Found"
+      end.
+
+    Definition to_string (status : t) : LString.t :=
+      LString.join (LString.s " ") [LString.s "HTTP/1.1"; code status; message status].
+  End Status.
+
+  Module Header.
+    Module Kind.
+      Inductive t : Set :=
+      | ContentType : t
+      | ContentLength : t.
+
+      Definition to_string (kind : t) : LString.t :=
+        match kind with
+        | ContentType => LString.s "Content-Type"
+        | ContentLength => LString.s "Content-Length"
+        end.
+    End Kind.
+
+    Record t : Set := New {
+      kind : Kind.t;
+      value : LString.t }.
+
+    Definition to_string (header : t) : LString.t :=
+      Kind.to_string (kind header) ++ LString.s ": " ++ value header.
+  End Header.
+
+  Record t : Set := New {
+    status : Status.t;
+    headers : list Header.t;
+    body : LString.t }.
+
+  Definition to_string (answer : t) : LString.t :=
+    LString.join [LString.Char.n] (
+      Status.to_string (status answer) ::
+      List.map Header.to_string (headers answer) ++
+      [LString.s ""; body answer]).
 End Answer.
 
 Definition http_answer_OK (content : LString.t) : LString.t :=
@@ -160,7 +195,7 @@ Definition handle_client (website_dir : LString.t) (client : ClientSocketId.t)
   | Some line =>
     let read := line ++ read in
     match Request.parse read with
-    | inl (Request.New (Method.Get, url, protocol) headers body) =>
+    | inl (Request.New (Request.Method.Get, url, protocol) headers body) =>
       do!
         let file_name := website_dir ++ url in
         do! Log.write (LString.s "Reading file: '" ++ file_name ++

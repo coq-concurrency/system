@@ -17,14 +17,15 @@ RUN apt-get install -y inotify-tools
 RUN opam repo add coq https://github.com/coq/opam-coq-repo.git
 
 # Unstable dependencies
-RUN opam repo add coq-unstable https://github.com/coq/opam-coq-repo-unstable.git
-RUN opam install -y coq-list-string
+RUN v=2 opam repo add coq-unstable https://github.com/coq/opam-coq-repo-unstable.git
+RUN opam install -y coq-error-handlers
 RUN opam install -y coq-fun-combinators
+RUN opam install -y coq-list-string
 
 # Build
 ADD . /root/coq-concurrency
 WORKDIR /root/coq-concurrency
-RUN eval `opam config env`; ./configure.sh && make
+RUN eval `opam config env`; ./configure.sh && make -j
 
 # Continuous build
 CMD eval `opam config env`; ./configure.sh && while inotifywait *.v; do make; done
