@@ -2,6 +2,7 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Strings.Ascii.
 Require Import Coq.Strings.String.
+Require Import FunCombinators.All.
 Require Import LString.LString.
 Require Import "Computation".
 Require Import "Events".
@@ -13,12 +14,6 @@ Local Open Scope type.
 Local Open Scope string.
 Local Open Scope char.
 Local Open Scope list.
-
-Definition apply {A B} (f : A -> B) (x : A) := f x.
-Notation " x |> f " := (apply f x)
-  (at level 40, left associativity).
-Notation " f @@ x " := (apply f x)
-  (at level 42, right associativity).
 
 Module Option.
   Definition bind (A B : Type) (x : option A) (f : A -> option B) : option B :=
@@ -63,35 +58,35 @@ Module Command.
     end.
 End Command.
 
-Module Header.
-  Module Kind.
-    Inductive t : Set :=
-    | Host : t.
-
-    Definition of_string (kind : LString.t) : t + LString.t :=
-      let kind := LString.down_case kind in
-      if LString.eqb kind (LString.s "host") then
-        inl Host
-      else
-        inr (LString.s "unknown header kind " ++ kind).
-  End Kind.
-
-  Record t : Set := New {
-    kind : Kind.t;
-    value : LString.t }.
-
-  Definition parse (header : LString.t) : option t + LString.t :=
-    match List.map LString.trim (LString.split_limit header ":" 2) with
-    | [kind; value] =>
-      match Kind.of_string kind with
-      | inl kind => inl @@ Some @@ New kind value
-      | inr _ => inl None
-      end
-    | _ => inr @@ LString.s "two elements expected"
-    end.
-End Header.
-
 Module Request.
+  Module Header.
+    Module Kind.
+      Inductive t : Set :=
+      | Host : t.
+
+      Definition of_string (kind : LString.t) : t + LString.t :=
+        let kind := LString.down_case kind in
+        if LString.eqb kind (LString.s "host") then
+          inl Host
+        else
+          inr (LString.s "unknown header kind " ++ kind).
+    End Kind.
+
+    Record t : Set := New {
+      kind : Kind.t;
+      value : LString.t }.
+
+    Definition parse (header : LString.t) : option t + LString.t :=
+      match List.map LString.trim (LString.split_limit header ":" 2) with
+      | [kind; value] =>
+        match Kind.of_string kind with
+        | inl kind => inl @@ Some @@ New kind value
+        | inr _ => inl None
+        end
+      | _ => inr @@ LString.s "two elements expected"
+      end.
+  End Header.
+
   Record t : Set := New {
     command : Command.t;
     headers : list Header.t;
@@ -138,6 +133,9 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3
       body := [LString.Char.n] |} :=
     eq_refl.
 End Request.
+
+Module Answer.
+End Answer.
 
 Definition http_answer_OK (content : LString.t) : LString.t :=
   LString.s "HTTP/1.0 200 OK
