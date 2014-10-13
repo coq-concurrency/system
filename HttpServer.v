@@ -155,12 +155,14 @@ Module Answer.
     Module Kind.
       Inductive t : Set :=
       | ContentType : t
-      | ContentLength : t.
+      | ContentLength : t
+      | Server : t.
 
       Definition to_string (kind : t) : LString.t :=
         match kind with
         | ContentType => LString.s "Content-Type"
         | ContentLength => LString.s "Content-Length"
+        | Server => LString.s "Server"
         end.
     End Kind.
 
@@ -187,7 +189,8 @@ Module Answer.
     status := Status.OK;
     headers := [
       Header.New Header.Kind.ContentType (MimeType.to_string mime_type);
-      Header.New Header.Kind.ContentLength (LString.of_nat_10 @@ List.length content)];
+      Header.New Header.Kind.ContentLength (LString.of_nat_10 @@ List.length content);
+      Header.New Header.Kind.Server (LString.s "Coq")];
     body := content |}.
 
   Definition error : t :=
@@ -196,7 +199,8 @@ Module Answer.
       status := Status.NotFound;
       headers := [
         Header.New Header.Kind.ContentType (MimeType.to_string MimeType.TextPlain);
-        Header.New Header.Kind.ContentLength (LString.of_nat_10 @@ List.length content)];
+        Header.New Header.Kind.ContentLength (LString.of_nat_10 @@ List.length content);
+        Header.New Header.Kind.Server (LString.s "Coq")];
       body := content |}.
 End Answer.
 
