@@ -5,6 +5,7 @@ Require Import Coq.PArith.PArith.
 Require Import Coq.Strings.String.
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlBigIntConv.
+Require Import ExtrOcamlString.
 Require Import LString.LString.
 Require Import "Computation".
 Require Import "Events".
@@ -30,13 +31,13 @@ Module Native.
     Extract Constant to_string => "fun s ->
       let l = ref [] in
       for i = 0 to String.length s - 1 do
-        l := s.[i] :: !l
+        l := (*Char.to_ascii*) s.[i] :: !l
       done;
       List.rev !l".
 
     Parameter of_string : LString.t -> t.
     Extract Constant of_string => "fun s ->
-      List.fold_right (fun c s -> String.make 1 c ^ s) s """"".
+      List.fold_right (fun c s -> String.make 1 (*Char.of_ascii*) c ^ s) s """"".
 
     Parameter append : t -> t -> t.
     Extract Constant append => "fun s1 s2 -> s1 ^ s2".

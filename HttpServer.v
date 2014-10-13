@@ -140,60 +140,50 @@ User-Agent: CERN-LineMode/2.15 libwww/2.17b3
 End Request.
 
 Definition http_answer_OK (content : LString.t) : LString.t :=
-  LString.s "HTTP/1.0 200 Not Found
+  LString.s "HTTP/1.0 200 OK
 Content-Type: text/plain
 Server: Coq
 
 " ++ content.
 
 Definition http_answer_error : LString.t :=
-  LString.s "HTTP/1.0 404 OK
+  LString.s "HTTP/1.0 404 Not found
 Content-Type: text/plain
 Server: Coq
 
 404".
 
-(*Fixpoint read_socket (A : Type) (f : A -> LString.t -> C.t [] A)
-  (c : A -> C.t [] unit) (a : A) (client : ClientSocketId.t) : C.t [] unit :=
-  C.Send Command.ClientSocketRead client (fun request =>
-  match request with
-  | None => c a
-  | Some line =>
-    let! a := f a line in
-    read_socket _ f c a client
-  end).*)
-
-Definition handle_client (client : ClientSocketId.t) : C.t [] unit :=
+Definition handle_client (website_dir : LString.t) (client : ClientSocketId.t)
+  : C.t [] unit :=
   do! Log.write (LString.s "Client connected.") (fun _ => C.Ret tt) in
-  ClientSocket.read client tt (fun _ request =>
+  ClientSocket.read client [] (fun read request =>
   match request with
   | None => C.Ret None
-  | Some line => C.Ret None
+  | Some line =>
+    let read := line ++ read in
+    match Request.parse read with
+    | inl (Request.New (Method.Get, url, protocol) headers body) =>
+      do!
+        let file_name := website_dir ++ url in
+        do! Log.write (LString.s "Reading file: '" ++ file_name ++
+          LString.s "'") (fun _ => C.Ret tt) in
+        File.read file_name (fun content =>
+        let answer := match content with
+          | None => http_answer_error
+          | Some content => http_answer_OK content
+          end in
+        ClientSocket.write client answer (fun _ =>
+        ClientSocket.close client (fun is_closed =>
+          let message := 
+            if is_closed then
+              LString.s "Client closed."
+            else
+              LString.s "Client cannot be closed." in
+            Log.write message (fun _ => C.Ret tt)))) in
+      C.Ret @@ Some []
+    | inr _ => C.Ret @@ Some read
+    end
   end).
-
-(*Definition handle_client (client : ClientSocketId.t) : C.t [] unit :=
-  do! Log.write (LString.s "Client connected.") (fun _ => C.Ret tt) in
-  ClientSocket.read client (fun request =>
-  match option_map parse request with
-  | None | Some None => C.Ret tt
-  | Some (Some (Method.Get, url)) =>
-    let file_name := website_dir ++ url in
-    do! Log.write (LString.s "Reading file: '" ++ file_name ++
-      LString.s "'") (fun _ => C.Ret tt) in
-    File.read file_name (fun content =>
-    let answer := match content with
-      | None => http_answer_error
-      | Some content => http_answer_OK content
-      end in
-    ClientSocket.write client answer (fun _ =>
-    ClientSocket.close client (fun is_closed =>
-      let message := 
-        if is_closed then
-          LString.s "Client closed."
-        else
-          LString.s "Client cannot be closed." in
-        Log.write message (fun _ => C.Ret tt))))
-  end).*)
 
 Definition program (argv : list LString.t) : C.t [] unit :=
   match argv with
@@ -204,7 +194,7 @@ Definition program (argv : list LString.t) : C.t [] unit :=
       match client with
       | None =>
         Log.write (LString.s "Server socket failed.") (fun _ => C.Exit tt)
-      | Some client => handle_client client
+      | Some client => handle_client website_dir client
       end))
   | _ =>
     Log.write (LString.s "Exactly one parameter expected: the website folder.") (fun _ =>
