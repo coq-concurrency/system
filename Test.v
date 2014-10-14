@@ -87,13 +87,13 @@ End EchoServer.
 
 (** * Extractions, made outside of any module. *)
 Definition do_nothing := Extraction.run _ Memory.Nil DoNothing.program.
-Extraction "tests/doNothing" do_nothing.
+Extraction "extraction/doNothing" do_nothing.
 
 Definition hello_world := Extraction.run _ Memory.Nil HelloWorld.program.
-Extraction "tests/helloWorld" hello_world.
+Extraction "extraction/helloWorld" hello_world.
 
 Definition read_file := Extraction.run _ Memory.Nil ReadFile.program.
-Extraction "tests/readFile" read_file.
+Extraction "extraction/readFile" read_file.
 
 Definition echo_server := Extraction.run _ Memory.Nil EchoServer.program.
-Extraction "tests/echoServer" echo_server.
+Extraction "extraction/echoServer" echo_server.
