@@ -33,7 +33,7 @@ Module Native.
         if i = -1 then
           l
         else
-          aux (s.[i] :: l) in
+          aux (s.[i] :: l) (i - 1) in
       aux [] (String.length s - 1)".
 
     Parameter of_string : LString.t -> t.
