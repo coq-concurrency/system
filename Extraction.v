@@ -253,7 +253,7 @@ End Output.
 Definition run (sig : Signature.t) (mem : Memory.t sig)
   (program : list LString.t -> C.t sig unit) : unit :=
   let system := Native.Process.run (Native.String.of_string
-    (LString.s "./systemProxy.native")) in
+    (LString.s "coqConcurrencyProxy.native")) in
   let fix print_outputs outputs :=
     match outputs with
     | [] => tt
