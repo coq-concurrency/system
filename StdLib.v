@@ -1,7 +1,7 @@
 (** The standard library. *)
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
-Require Import LString.LString.
+Require Import LString.All.
 Require Import "Computation".
 Require Import "Events".
 

@@ -2,7 +2,7 @@
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.PArith.PArith.
-Require Import LString.LString.
+Require Import LString.All.
 
 Import ListNotations.
 Local Open Scope type.
