@@ -6,7 +6,7 @@ Require Import Coq.Strings.String.
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlBigIntConv.
 Require Import ExtrOcamlString.
-Require Import LString.All.
+Require Import ListString.All.
 Require Import "Computation".
 Require Import "Events".
 Require Import "Run".

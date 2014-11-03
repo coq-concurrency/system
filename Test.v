@@ -2,7 +2,7 @@
 Require Import Coq.Lists.List.
 Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.String.
-Require Import LString.All.
+Require Import ListString.All.
 Require Import "Computation".
 Require Import "Events".
 Require Import "Extraction".
