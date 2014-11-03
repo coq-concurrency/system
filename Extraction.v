@@ -131,6 +131,8 @@ Module Input.
       Some Command.ClientSocketWrite
     else if LString.eqb command (LString.s "ClientSocketClose") then
       Some Command.ClientSocketClose
+    else if LString.eqb command (LString.s "Time") then
+      Some Command.Time
     else
       None.
   
@@ -198,6 +200,8 @@ Module Input.
           | None => inr (LString.s "Invalid boolean.")
           | Some is_success => inl (Input.New Command.ClientSocketClose id is_success)
           end
+        (* TODO *)
+        | (Command.Time, [time]) => inl (Input.New Command.Time id 0%N)
         | _ => inr (LString.s "Wrong number of arguments.")
         end
       end
@@ -251,6 +255,7 @@ Module Output.
         (join (export_client_id client_id) (export_string content))
     | Output.New Command.ClientSocketClose _ client_id =>
       join (start "ClientSocketClose") (export_client_id client_id)
+    | Output.New Command.Time _ _ => start "Time"
     end.
 End Output.
 

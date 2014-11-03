@@ -17,7 +17,8 @@ Module Command.
   | Log
   | FileRead
   | ServerSocketBind
-  | ClientSocketRead | ClientSocketWrite | ClientSocketClose.
+  | ClientSocketRead | ClientSocketWrite | ClientSocketClose
+  | Time.
 
   (** The type of the parameters of a request. *)
   Definition request (command : t) : Set :=
@@ -28,6 +29,7 @@ Module Command.
     | ClientSocketRead => ClientSocketId.t
     | ClientSocketWrite => ClientSocketId.t * LString.t
     | ClientSocketClose => ClientSocketId.t
+    | Time => unit
     end.
 
   (** The type of the parameters of an answer. *)
@@ -39,6 +41,7 @@ Module Command.
     | ClientSocketRead => option LString.t
     | ClientSocketWrite => bool
     | ClientSocketClose => bool
+    | Time => N
     end.
 
   Definition eq_dec (command1 command2 : t) :

@@ -1,10 +1,10 @@
-FROM ubuntu
+FROM ubuntu:14.10
 MAINTAINER Guillaume Claret
 
 RUN apt-get update && apt-get upgrade -y
 RUN apt-get install -y gcc make git
 RUN apt-get install -y curl m4 ruby
-RUN apt-get install -y ocaml
+RUN apt-get install -y ocaml-nox
 
 # OPAM 1.2
 WORKDIR /root
@@ -33,8 +33,8 @@ RUN opam repo add coq-unstable https://github.com/coq/opam-coq-repo-unstable.git
 RUN opam install -y coq:list-string
 
 # Build
-ADD . /root/coq-concurrency
-WORKDIR /root/coq-concurrency
+ADD . /root/system
+WORKDIR /root/system
 RUN eval `opam config env`; ./configure.sh && make -j
 
 # Continuous build
