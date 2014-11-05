@@ -59,3 +59,13 @@ Module ServerSocket.
       do! handler client in
       C.Ret None).
 End ServerSocket.
+
+(** Get the current time. *)
+Module Time.
+  (** Get the current time (the number of seconds since Unix epoch). *)
+  Definition get {sig : Signature.t} (handler : N -> C.t sig unit)
+    : C.t sig unit :=
+    C.Send Command.Time tt tt (fun _ time =>
+      do! handler time in
+      C.Ret None).
+End Time.
