@@ -200,8 +200,11 @@ Module Input.
           | None => inr (LString.s "Invalid boolean.")
           | Some is_success => inl (Input.New Command.ClientSocketClose id is_success)
           end
-        (* TODO *)
-        | (Command.Time, [time]) => inl (Input.New Command.Time id 0%N)
+        | (Command.Time, [time]) =>
+          match LString.to_N 10 (Native.String.to_string time) with
+          | None => inr (LString.s "Invalid integer.")
+          | Some time => inl (Input.New Command.Time id time)
+          end
         | _ => inr (LString.s "Wrong number of arguments.")
         end
       end
