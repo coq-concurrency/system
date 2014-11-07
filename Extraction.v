@@ -19,40 +19,26 @@ Module Native.
   (** Sequence two instructions. *)
   Parameter seq : forall A, (unit -> unit) -> (unit -> A) -> A.
   Arguments seq [A] _ _.
-  Extract Constant seq => "fun f g ->
-    f ();
-    g ()".
+  Extract Constant seq => "Native.seq".
 
   Module String.
     Parameter t : Set.
     Extract Constant t => "string".
 
     Parameter to_string : t -> LString.t.
-    Extract Constant to_string => "fun s ->
-      let rec aux l i =
-        if i = -1 then
-          l
-        else
-          aux (s.[i] :: l) (i - 1) in
-      aux [] (String.length s - 1)".
+    Extract Constant to_string => "Native.String.to_string".
 
     Parameter of_string : LString.t -> t.
-    Extract Constant of_string => "fun s ->
-      let length = List.length s in
-      let buffer = String.create length in
-      List.iteri (fun i c -> String.set buffer i c) s;
-      buffer".
+    Extract Constant of_string => "Native.String.of_string".
 
     Parameter append : t -> t -> t.
-    Extract Constant append => "fun s1 s2 -> s1 ^ s2".
+    Extract Constant append => "Native.String.append".
 
     Parameter tokenize : t -> list t.
-    Extract Constant tokenize => "fun s ->
-      Str.split_delim (Str.regexp_string "" "") s".
+    Extract Constant tokenize => "Native.String.tokenize".
 
     Parameter is_empty : t -> bool.
-    Extract Constant is_empty => "fun s ->
-      String.length s = 0".
+    Extract Constant is_empty => "Native.String.is_empty".
   End String.
 
   Module Base64.
@@ -65,39 +51,26 @@ Module Native.
 
   Module Process.
     Parameter t : Set.
-    Extract Constant t => "in_channel * out_channel".
+    Extract Constant t => "Native.Process.t".
 
     Parameter run : String.t -> t.
-    Extract Constant run => "Unix.open_process".
+    Extract Constant run => "Native.Process.run".
 
     Parameter print_line : String.t -> t -> unit.
-    Extract Constant print_line => "fun message (_, output) ->
-      output_string output (message ^ ""\n"");
-      flush output".
+    Extract Constant print_line => "Native.Process.print_line".
 
     Parameter fold_lines : forall A, t -> A -> (A -> String.t -> option A) -> unit.
-    Extract Constant fold_lines => "fun (input, _) state f ->
-      let rec aux state =
-        match input_line input with
-        | line ->
-          (match f state line with
-          | None -> ()
-          | Some state -> aux state)
-        | exception End_of_file -> () in
-      aux state".
+    Extract Constant fold_lines => "Native.Process.fold_lines".
   End Process.
 
   Module BigInt.
     Definition t : Type := bigint.
 
     Parameter to_string : t -> String.t.
-    Extract Constant to_string => "Big_int.string_of_big_int".
+    Extract Constant to_string => "Native.BigInt.to_string".
 
     Parameter of_string : String.t -> option t.
-    Extract Constant of_string => "fun n ->
-      match Big_int.big_int_of_string n with
-      | s -> Some s
-      | exception _ -> None".
+    Extract Constant of_string => "Native.BigInt.of_string".
 
     Definition to_positive : t -> positive := pos_of_bigint.
     Definition of_positive : positive -> t := bigint_of_pos.
@@ -107,12 +80,10 @@ Module Native.
   End BigInt.
 
   Parameter print_error : String.t -> unit.
-  Extract Constant print_error => "fun message ->
-    prerr_endline message;
-    flush stderr".
+  Extract Constant print_error => "Native.print_error".
 
   Parameter argv : list String.t.
-  Extract Constant argv => "Array.to_list Sys.argv".
+  Extract Constant argv => "Native.argv".
 End Native.
 
 (** Import input events. *)
