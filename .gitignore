@@ -6,3 +6,4 @@ extraction/*.mli
 *.vo
 *.glob
 *.v.d
+*.aux

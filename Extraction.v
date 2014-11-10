@@ -6,6 +6,8 @@ Require Import Coq.Strings.String.
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlBigIntConv.
 Require Import ExtrOcamlString.
+Require Import ErrorHandlers.All.
+Require Import FunctionNinjas.All.
 Require Import ListString.All.
 Require Import Computation.
 Require Import Events.
@@ -116,24 +118,20 @@ End Native.
 
 (** Import input events. *)
 Module Input.
+  Definition commands : list (string * Command.t) := [
+    ("Log", Command.Log);
+    ("FileRead", Command.FileRead);
+    ("ServerSocketBind", Command.ServerSocketBind);
+    ("ClientSocketRead", Command.ClientSocketRead);
+    ("ClientSocketWrite", Command.ClientSocketWrite);
+    ("ClientSocketClose", Command.ClientSocketClose);
+    ("Time", Command.Time)].
+
   Definition import_command (command : Native.String.t) : option Command.t :=
     let command := Native.String.to_string command in
-    if LString.eqb command (LString.s "Log") then
-      Some Command.Log
-    else if LString.eqb command (LString.s "FileRead") then
-      Some Command.FileRead
-    else if LString.eqb command (LString.s "ServerSocketBind") then
-      Some Command.ServerSocketBind
-    else if LString.eqb command (LString.s "ClientSocketRead") then
-      Some Command.ClientSocketRead
-    else if LString.eqb command (LString.s "ClientSocketWrite") then
-      Some Command.ClientSocketWrite
-    else if LString.eqb command (LString.s "ClientSocketClose") then
-      Some Command.ClientSocketClose
-    else if LString.eqb command (LString.s "Time") then
-      Some Command.Time
-    else
-      None.
+    Option.bind (commands |> List.find (fun x =>
+      LString.eqb command @@ LString.s @@ fst x)) (fun x =>
+    Some (snd x)).
   
   Definition import_bool (b : Native.String.t) : option bool :=
     let b := Native.String.to_string b in
