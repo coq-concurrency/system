@@ -1,6 +1,6 @@
 (** The definition of a computation, used to represent concurrent programs. *)
 Require Import Coq.Lists.List.
-Require Import "Events".
+Require Import Events.
 
 Import ListNotations.
 

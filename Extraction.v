@@ -7,9 +7,9 @@ Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlBigIntConv.
 Require Import ExtrOcamlString.
 Require Import ListString.All.
-Require Import "Computation".
-Require Import "Events".
-Require Import "Run".
+Require Import Computation.
+Require Import Events.
+Require Import Run.
 
 Import ListNotations.
 Local Open Scope string.
