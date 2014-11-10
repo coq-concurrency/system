@@ -118,6 +118,7 @@ End Native.
 
 (** Import input events. *)
 Module Input.
+  (** An associative list of the commands. *)
   Definition commands : list (string * Command.t) := [
     ("Log", Command.Log);
     ("FileRead", Command.FileRead);
@@ -127,12 +128,14 @@ Module Input.
     ("ClientSocketClose", Command.ClientSocketClose);
     ("Time", Command.Time)].
 
+  (** Try to import a command string. *)
   Definition import_command (command : Native.String.t) : option Command.t :=
     let command := Native.String.to_string command in
     Option.bind (commands |> List.find (fun x =>
       LString.eqb command @@ LString.s @@ fst x)) (fun x =>
     Some (snd x)).
   
+  (** Try to import the string of a boolean. *)
   Definition import_bool (b : Native.String.t) : option bool :=
     let b := Native.String.to_string b in
     if LString.eqb b (LString.s "false") then
@@ -142,21 +145,26 @@ Module Input.
     else
       None.
 
+  (** Try to import the string of a `positive`. *)
   Definition import_positive (n : Native.String.t) : option positive :=
     option_map Native.BigInt.to_positive (Native.BigInt.of_string n).
 
+  (** Try to import the string of a `N`. *)
   Definition import_N (n : Native.String.t) : option N :=
     option_map Native.BigInt.to_N (Native.BigInt.of_string n).
 
+  (** Try to import a string in base64. *)
   Definition import_string (s : Native.String.t) : LString.t :=
     Native.String.to_string (Native.Base64.decode s).
 
+  (** Try to import the option of an argument. *)
   Definition import_option (s : Native.String.t) : option Native.String.t :=
     if Native.String.is_empty s then
       None
     else
       Some s.
 
+  (** Import an input message. May return an error message. *)
   Definition import (input : Native.String.t) : Input.t + LString.t :=
     match Native.String.tokenize input with
     | command :: id :: arguments =>
@@ -211,31 +219,37 @@ End Input.
 
 (** Export output events. *)
 Module Output.
-  (** Concatenate with a space in between. *)
+  (** Concatenate two strings with a space in between. *)
   Definition join (s1 s2 : Native.String.t) : Native.String.t :=
     Native.String.append (Native.String.append s1
       (Native.String.of_string (LString.s " "))) s2.
 
+  (** Export a boolean. *)
   Definition export_bool (b : bool) : Native.String.t :=
     if b then
       Native.String.of_string (LString.s "true")
     else
       Native.String.of_string (LString.s "false").
 
+  (** Export a `positive`. *)
   Definition export_positive (n : positive) : Native.String.t :=
     Native.BigInt.to_string (Native.BigInt.of_positive n).
 
+  (** Export a `N`. *)
   Definition export_N (n : N) : Native.String.t :=
     Native.BigInt.to_string (Native.BigInt.of_N n).
 
+  (** Export a client socket id. *)
   Definition export_client_id (client_id : ClientSocketId.t) : Native.String.t :=
     match client_id with
     | ClientSocketId.New client_id => export_N client_id
     end.
 
+  (** Export a string in base64. *)
   Definition export_string (s : LString.t) : Native.String.t :=
     Native.Base64.encode (Native.String.of_string s).
 
+  (** Export an output message to a string. *)
   Definition export (output : Output.t) : Native.String.t :=
     let id := export_positive (Output.id output) in
     let start (s : string) :=
@@ -259,10 +273,13 @@ Module Output.
     end.
 End Output.
 
+(** Run a program on an initial memory. *)
 Definition run (sig : Signature.t) (mem : Memory.t sig)
   (program : list LString.t -> C.t sig unit) : unit :=
-  let system := Native.Process.run (Native.String.of_string
-    (LString.s "coqConcurrencyProxy.native")) in
+  (* The proxy to talk with. *)
+  let system := Native.Process.run @@ Native.String.of_string @@
+    LString.s "coqConcurrencyProxy.native" in
+  (* Print a list of outputs. *)
   let fix print_outputs outputs :=
     match outputs with
     | [] => tt
@@ -271,7 +288,9 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
         (fun _ => Native.Process.print_line (Output.export output) system)
         (fun _ => print_outputs outputs)
     end in
+  (* The program arguments. *)
   let argv := List.map Native.String.to_string Native.argv in
+  (* Run the program on its arguments. *)
   match Run.run _ _ (CallBacks.empty _) mem [] (program argv) with
   | (result, call_backs, mem, outputs) =>
     Native.seq
@@ -281,6 +300,7 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
         | None => tt
         | Some _ =>
           let state := (call_backs, mem) in
+          (* We loop on the resulting events sent-back by the system. *)
           Native.Process.fold_lines _ system state (fun state input =>
             let (call_backs, mem) := state in
             match Input.import input with
