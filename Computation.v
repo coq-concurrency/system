@@ -50,14 +50,21 @@ End Ref.
 
 (** Definition of a computation. *)
 Module C.
+  (** A computation is a free monad with some primitives. *)
   Inductive t (sig : Signature.t) : Type -> Type :=
   | Ret : forall {A : Type}, A -> t sig A
   | Bind : forall {A B : Type}, t sig A -> (A -> t sig B) -> t sig B
   | Read : forall {A : Type}, `{Ref.C A sig} -> t sig A
+    (** Read the value of a reference (atomic). *)
   | Write : forall {A : Type}, `{Ref.C A sig} -> A -> t sig unit
+    (** Write a value in a reference (atomic). *)
   | Send : forall {A : Type} (command : Command.t), Command.request command ->
     A -> (A -> Command.answer command -> t sig (option A)) -> t sig unit
-  | Exit : unit -> t sig unit.
+    (** Sends a request to the operating system, and react to answers with the
+        handler. *)
+  | Exit : unit -> t sig unit
+    (** Terminate the program. *).
+  (* We force the `sig` argument to be implicit. *)
   Arguments Ret {sig A} _.
   Arguments Bind {sig A B} _ _.
   Arguments Read {sig A} _.
@@ -78,6 +85,7 @@ Module C.
   End Notations.
 End C.
 
+(*
 (** Functions on lists. *)
 Module List.
   Import C.Notations.
@@ -92,4 +100,4 @@ Module List.
       iter _ _ l f
     end.
   Arguments iter [sig A] _ _.
-End List.
+End List.*)

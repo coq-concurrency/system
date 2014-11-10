@@ -15,73 +15,101 @@ Import ListNotations.
 Local Open Scope string.
 Local Open Scope list.
 
+(** The module to access to OCaml functions. *)
 Module Native.
   (** Sequence two instructions. *)
   Parameter seq : forall A, (unit -> unit) -> (unit -> A) -> A.
   Arguments seq [A] _ _.
   Extract Constant seq => "Native.seq".
 
+  (** To manipulate OCaml strings. *)
   Module String.
+    (** The OCaml's `string` type. *)
     Parameter t : Set.
     Extract Constant t => "string".
 
+    (** Import an OCaml string. *)
     Parameter to_string : t -> LString.t.
     Extract Constant to_string => "Native.String.to_string".
 
+    (** Export a string to OCaml. *)
     Parameter of_string : LString.t -> t.
     Extract Constant of_string => "Native.String.of_string".
 
+    (** Concatenate two strings. *)
     Parameter append : t -> t -> t.
     Extract Constant append => "Native.String.append".
 
+    (** Split a string at each space. *)
     Parameter tokenize : t -> list t.
     Extract Constant tokenize => "Native.String.tokenize".
 
+    (** Test if a string is empty. *)
     Parameter is_empty : t -> bool.
     Extract Constant is_empty => "Native.String.is_empty".
   End String.
 
+  (** The base64 format. *)
   Module Base64.
+    (** Encode an OCaml string in base64. *)
     Parameter encode : String.t -> String.t.
     Extract Constant encode => "Base64.encode".
 
+    (** Decode an OCaml string in base64. *)
     Parameter decode : String.t -> String.t.
     Extract Constant decode => "Base64.decode".
   End Base64.
 
+  (** Handle communication with a son process through a pipe. *)
   Module Process.
+    (** A process is the pipe to communicate with it. *)
     Parameter t : Set.
     Extract Constant t => "Native.Process.t".
 
+    (** Start a new process. *)
     Parameter run : String.t -> t.
     Extract Constant run => "Native.Process.run".
 
+    (** Send a message to a pipe. *)
     Parameter print_line : String.t -> t -> unit.
     Extract Constant print_line => "Native.Process.print_line".
 
+    (** Handle messages from a pipe using a fold. *)
     Parameter fold_lines : forall A, t -> A -> (A -> String.t -> option A) -> unit.
     Extract Constant fold_lines => "Native.Process.fold_lines".
   End Process.
 
+  (** Unbounded integers. *)
   Module BigInt.
+    (** The OCaml's `bigint` type. *)
     Definition t : Type := bigint.
 
+    (** Export to an OCaml string. *)
     Parameter to_string : t -> String.t.
     Extract Constant to_string => "Native.BigInt.to_string".
 
+    (** Import from an OCaml string. *)
     Parameter of_string : String.t -> option t.
     Extract Constant of_string => "Native.BigInt.of_string".
 
+    (** Export to a `positive`. *)
     Definition to_positive : t -> positive := pos_of_bigint.
+
+    (** Import from a `positive`. *)
     Definition of_positive : positive -> t := bigint_of_pos.
 
+    (** Export to a `N`. *)
     Definition to_N : t -> N := n_of_bigint.
+
+    (** Import from a `N`. *)
     Definition of_N : N -> t := bigint_of_n.
   End BigInt.
 
+  (** Print an error message on `stderr`. *)
   Parameter print_error : String.t -> unit.
   Extract Constant print_error => "Native.print_error".
 
+  (** The list of arguments of the program. *)
   Parameter argv : list String.t.
   Extract Constant argv => "Native.argv".
 End Native.
