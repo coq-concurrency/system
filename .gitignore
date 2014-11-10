@@ -1,3 +1,6 @@
+Computation.v
+Extraction.v
+Run.v
 opam*/
 Makefile
 extraction/*.ml

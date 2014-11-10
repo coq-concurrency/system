@@ -89,7 +89,7 @@ Module CallBacks.
     (id : positive) : option (CallBack.t sig command) :=
     match Heap.find _ (heap _ call_backs) id with
     | None => None
-    | Some (existT command' call_back) =>
+    | Some (existT <%= "_" unless version[0..2] == "8.4" %> command' call_back) =>
       match Command.eq_dec command command' with
       | left Heq =>
           eq_rect_r (fun c => option (CallBack.t sig c)) (Some call_back) Heq
@@ -107,20 +107,20 @@ End CallBacks.
 Fixpoint run (sig : Signature.t) (A : Type) (call_backs : CallBacks.t sig)
   (mem : Memory.t sig) (outputs : list Output.t) (x : C.t sig A)
   : option A * CallBacks.t sig * Memory.t sig * list Output.t :=
-  match x with
-  | C.Ret _ x => (Some x, call_backs, mem, outputs)
-  | C.Bind _ _ x f =>
+  match x in C.t _ A return option A  * _ * _ * _ with
+  | C.Ret <%= "_" if version[0..2] == "8.4" %> x => (Some x, call_backs, mem, outputs)
+  | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f =>
     match run _ _ call_backs mem outputs x with
     | (Some x, call_backs, mem, outputs) =>
       run _ _ call_backs mem outputs (f x)
     | (None, call_backs, mem, outputs) => (None, call_backs, mem, outputs)
     end
-  | C.Read _ _ => (Some (Ref.read mem), call_backs, mem, outputs)
-  | C.Write _ _ v => (Some tt, call_backs, Ref.write mem v, outputs)
-  | C.Send _ command request a handler =>
-    let call_back := CallBack.New _ command _ a handler in
-    let (id, call_backs) := CallBacks.add _ call_backs command call_back in
-    let output := Output.New command id request in
+  | C.Read <%= "_" if version[0..2] == "8.4" %> _ => (Some (Ref.read mem), call_backs, mem, outputs)
+  | C.Write <%= "_" if version[0..2] == "8.4" %> _ v => (Some tt, call_backs, Ref.write mem v, outputs)
+  | C.Send <%= "_" if version[0..2] == "8.4" %> _ request a handler =>
+    let call_back := CallBack.New _ _ _ a handler in
+    let (id, call_backs) := CallBacks.add _ call_backs _ call_back in
+    let output := Output.New _ id request in
     (Some tt, call_backs, mem, output :: outputs)
   | C.Exit _ => (None, call_backs, mem, outputs)
   end.
@@ -134,7 +134,7 @@ Fixpoint run_call_backs (sig : Signature.t) (call_backs : CallBacks.t sig)
     let (command, id, argument) := input in
     match CallBacks.find _ call_backs command id with
     | None => run_call_backs _ call_backs mem outputs inputs
-    | Some (CallBack.New _ a handler) =>
+    | Some (CallBack.New _ <%= "_ _" unless version[0..2] == "8.4" %> a handler) =>
       match run _ _ call_backs mem outputs (handler a argument) with
       | (None, _, _, outputs) => (true, outputs)
       | (Some a, call_backs, mem, outputs) =>

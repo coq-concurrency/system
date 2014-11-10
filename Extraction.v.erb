@@ -307,7 +307,7 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
             | inl (Input.New command id argument) =>
               match CallBacks.find _ call_backs command id with
               | None => Some state
-              | Some (CallBack.New _ a handler) =>
+              | Some (CallBack.New _ <%= "_ _" unless version[0..2] == "8.4" %> a handler) =>
                 match Run.run _ _ call_backs mem [] (handler a argument) with
                 | (result, call_backs, mem, outputs) =>
                   Native.seq

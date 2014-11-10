@@ -14,22 +14,19 @@ Module Memory.
   (** The shared memory is a list of typed cells. *)
   Inductive t : Signature.t -> Type :=
   | Nil : t []
-  | Cons : forall (A : Type) (sig : Signature.t), A -> t sig -> t (A :: sig).
-  Arguments Cons [A sig] _ _.
+  | Cons : forall {A : Type} {sig : Signature.t}, A -> t sig -> t (A :: sig).
   
   (** The first shared memory cell. *)
-  Definition head (A : Type) (sig : Signature.t) (mem : t (A :: sig)) : A :=
+  Definition head {A : Type} {sig : Signature.t} (mem : t (A :: sig)) : A :=
     match mem with
-    | Cons _ _ x _ => x
+    | Cons <%= "_ _" if version[0..2] == "8.4" %> x _ => x
     end.
-  Arguments head [A sig] _.
   
   (** The tail of the shared memory. *)
-  Definition tail (A : Type) (sig : Signature.t) (mem : t (A :: sig)) : t sig :=
+  Definition tail {A : Type} {sig : Signature.t} (mem : t (A :: sig)) : t sig :=
     match mem with
-    | Cons _ _ _ mem => mem
+    | Cons <%= "_ _" if version[0..2] == "8.4" %> _ mem => mem
     end.
-  Arguments tail [A sig] _.
 End Memory.
 
 (** A reference to a shared memory cell. *)
