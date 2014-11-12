@@ -18,7 +18,7 @@ Module DoNothing.
     C.Exit tt.
 
   Definition test1 :
-    Run.run_on_inputs _ (program []) Memory.Nil [] = (true, []) :=
+    Run.run_on_inputs (program []) Memory.Nil [] = (true, []) :=
     eq_refl.
 End DoNothing.
 
@@ -29,7 +29,7 @@ Module HelloWorld.
     Log.write (LString.s "world!") (fun _ =>
     C.Exit tt)).
 
-  Definition test1 : Run.run_on_inputs _ (program []) Memory.Nil [
+  Definition test1 : Run.run_on_inputs (program []) Memory.Nil [
     Input.New Command.Log 1 true;
     Input.New Command.Log 2 true ] =
     (true, [
@@ -37,7 +37,7 @@ Module HelloWorld.
       Output.New Command.Log 1 (LString.s "Hello") ]) :=
     eq_refl.
 
-  Definition test2 : Run.run_on_inputs _ (program []) Memory.Nil [
+  Definition test2 : Run.run_on_inputs (program []) Memory.Nil [
     Input.New Command.Log 2 true;
     Input.New Command.Log 1 true ] =
     (false, [
@@ -86,14 +86,14 @@ Module EchoServer.
 End EchoServer.
 
 (** * Extractions, made outside of any module. *)
-Definition do_nothing := Extraction.run _ Memory.Nil DoNothing.program.
+Definition do_nothing := Extraction.run Memory.Nil DoNothing.program.
 Extraction "extraction/doNothing" do_nothing.
 
-Definition hello_world := Extraction.run _ Memory.Nil HelloWorld.program.
+Definition hello_world := Extraction.run Memory.Nil HelloWorld.program.
 Extraction "extraction/helloWorld" hello_world.
 
-Definition read_file := Extraction.run _ Memory.Nil ReadFile.program.
+Definition read_file := Extraction.run Memory.Nil ReadFile.program.
 Extraction "extraction/readFile" read_file.
 
-Definition echo_server := Extraction.run _ Memory.Nil EchoServer.program.
+Definition echo_server := Extraction.run Memory.Nil EchoServer.program.
 Extraction "extraction/echoServer" echo_server.

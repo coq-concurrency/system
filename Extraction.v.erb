@@ -274,7 +274,7 @@ Module Output.
 End Output.
 
 (** Run a program on an initial memory. *)
-Definition run (sig : Signature.t) (mem : Memory.t sig)
+Definition run {sig : Signature.t} (mem : Memory.t sig)
   (program : list LString.t -> C.t sig unit) : unit :=
   (* The proxy to talk with. *)
   let system := Native.Process.run @@ Native.String.of_string @@
@@ -291,7 +291,7 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
   (* The program arguments. *)
   let argv := List.map Native.String.to_string Native.argv in
   (* Run the program on its arguments. *)
-  match Run.run _ _ (CallBacks.empty _) mem [] (program argv) with
+  match Run.run (CallBacks.empty _) mem [] (program argv) with
   | (result, call_backs, mem, outputs) =>
     Native.seq
       (fun _ => print_outputs outputs)
@@ -305,10 +305,10 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
             let (call_backs, mem) := state in
             match Input.import input with
             | inl (Input.New command id argument) =>
-              match CallBacks.find _ call_backs command id with
+              match CallBacks.find call_backs id with
               | None => Some state
-              | Some (CallBack.New _ <%= "_ _" unless version[0..2] == "8.4" %> a handler) =>
-                match Run.run _ _ call_backs mem [] (handler a argument) with
+              | Some (CallBack.New <%= "_" if version[0..2] == "8.4" %> a handler) =>
+                match Run.run call_backs mem [] (handler a argument) with
                 | (result, call_backs, mem, outputs) =>
                   Native.seq
                     (fun _ => print_outputs outputs)
@@ -320,8 +320,8 @@ Definition run (sig : Signature.t) (mem : Memory.t sig)
                           match a with
                           | None => call_backs
                           | Some a =>
-                            let call_back := CallBack.New _ command _ a handler in
-                            CallBacks.update _ call_backs id command call_back
+                            let call_back := CallBack.New a handler in
+                            CallBacks.update call_backs id call_back
                           end in
                         Some (call_backs, mem)
                       end)
