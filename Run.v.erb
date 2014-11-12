@@ -6,56 +6,58 @@ Require Import Events.
 Import ListNotations.
 Local Open Scope type.
 
+(** Heap of values indexed by positives. *)
 Module Heap.
+  (** A heap is a binary tree. *)
   Inductive t (A : Type) : Type :=
   | Empty : t A
   | Node : A -> t A -> t A -> t A.
-  Arguments Empty [A].
-  Arguments Node [A] _ _ _.
+  Arguments Empty {A}.
+  Arguments Node {A} _ _ _.
 
-  Fixpoint add (A : Type) (heap : t A) (x : A) (n : positive) : t A :=
+  Fixpoint add {A : Type} (heap : t A) (x : A) (n : positive) : t A :=
     match (heap, n) with
     | (Empty, _) => Node x Empty Empty
-    | (Node y heap1 heap2, xH) => Node y (add A heap1 x n) heap2
-    | (Node y heap1 heap2, xO n) => Node y (add A heap1 x n) heap2
-    | (Node y heap1 heap2, xI n) => Node y heap1 (add A heap2 x n)
+    | (Node y heap1 heap2, xH) => Node y (add heap1 x n) heap2
+    | (Node y heap1 heap2, xO n) => Node y (add heap1 x n) heap2
+    | (Node y heap1 heap2, xI n) => Node y heap1 (add heap2 x n)
     end.
 
-  Fixpoint find (A : Type) (heap : t A) (n : positive) : option A :=
+  Fixpoint find {A : Type} (heap : t A) (n : positive) : option A :=
     match (heap, n) with
     | (Empty, _) => None
     | (Node x _ _, xH) => Some x
-    | (Node x heap _, xO n) => find A heap n
-    | (Node x _ heap, xI n) => find A heap n
+    | (Node x heap _, xO n) => find heap n
+    | (Node x _ heap, xI n) => find heap n
     end.
 
-  Fixpoint update (A : Type) (heap : t A) (n : positive) (x : A) : t A :=
+  Fixpoint update {A : Type} (heap : t A) (n : positive) (x : A) : t A :=
     match (heap, n) with
     | (Empty, _) => heap
     | (Node _ heap1 heap2, xH) => Node x heap1 heap2
-    | (Node y heap1 heap2, xO n) => Node y (update _ heap1 n x) heap2
-    | (Node y heap1 heap2, xI n) => Node y heap1 (update _ heap2 n x)
+    | (Node y heap1 heap2, xO n) => Node y (update heap1 n x) heap2
+    | (Node y heap1 heap2, xI n) => Node y heap1 (update heap2 n x)
     end.
 
   Module Tests.
     Definition h :=
-      let h := add _ Empty 1 1 in
-      let h := add _ h 2 2 in
-      let h := add _ h 3 3 in
-      let h := add _ h 4 4 in
-      add _ h 5 5.
+      let h := add Empty 1 1 in
+      let h := add h 2 2 in
+      let h := add h 3 3 in
+      let h := add h 4 4 in
+      add h 5 5.
 
     Definition test1 : h = Node 1 (Node 2 (Node 4 Empty Empty) Empty)
       (Node 3 (Node 5 Empty Empty) Empty) :=
       eq_refl.
 
-    Definition test2 : find _ Empty 3 = None (A := nat) :=
+    Definition test2 : find Empty 3 = None (A := nat) :=
       eq_refl.
 
-    Definition test3 : find _ h 3 = Some 3 :=
+    Definition test3 : find h 3 = Some 3 :=
       eq_refl.
 
-    Definition test4 : update _ h 3 7 =
+    Definition test4 : update h 3 7 =
       Node 1 (Node 2 (Node 4 Empty Empty) Empty)
         (Node 7 (Node 5 Empty Empty) Empty) :=
       eq_refl.
@@ -82,12 +84,12 @@ Module CallBacks.
     (call_back : CallBack.t sig command) : positive * t sig :=
     let id := next _ call_backs in
     (id, {|
-      heap := Heap.add _ (heap _ call_backs) (existT _ command call_back) id;
+      heap := Heap.add (heap _ call_backs) (existT _ command call_back) id;
       next := id + 1 |}).
 
   Definition find (sig : Signature.t) (call_backs : t sig) (command : Command.t)
     (id : positive) : option (CallBack.t sig command) :=
-    match Heap.find _ (heap _ call_backs) id with
+    match Heap.find (heap _ call_backs) id with
     | None => None
     | Some (existT <%= "_" unless version[0..2] == "8.4" %> command' call_back) =>
       match Command.eq_dec command command' with
@@ -99,7 +101,7 @@ Module CallBacks.
 
   Definition update (sig : Signature.t) (call_backs : t sig) (id : positive)
     (command : Command.t) (call_back : CallBack.t sig command) : t sig := {|
-    heap := Heap.update _ (heap _ call_backs) id (existT _ command call_back);
+    heap := Heap.update (heap _ call_backs) id (existT _ command call_back);
     next := next _ call_backs |}.
 End CallBacks.
 
