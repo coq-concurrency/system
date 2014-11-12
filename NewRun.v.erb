@@ -7,8 +7,7 @@ Import ListNotations.
 
 Module Oracle.
   Definition t (sig : Signature.t) : Type :=
-    Stream (forall (command : Command.t) (A : Type),
-      list (Command.answer command * A * Memory.t sig)).
+    Stream (forall (command : Command.t), list (Command.answer command)).
 End Oracle.
 
 (** The type of an input. *)
@@ -27,16 +26,6 @@ Module Output.
     argument : Command.request command}.
 End Output.
 
-(*Module Request.
-  Definition t (sig : Sig.t) : Type := New {
-    A : Type;
-    command : Command.t;
-    request : }.
-
-  forall {A : Type} (command : Command.t), Command.request command ->
-    A -> (A -> Command.answer command -> t sig (option A))
-End Request.*)
-
 Module Outputs.
   Inductive t (sig : Signature.t) : Type :=
   | Nil : t sig
@@ -50,26 +39,45 @@ Module Outputs.
   Arguments Bind {sig} _ _.
   Arguments Send {sig S} _ _ _ _.
 
-  (*Fixpoint eval_mem {sig : Signature.t} (outputs : t sig) : Memory.t sig :=
-    match outputs with
-    | Nil mem => mem
-    | Bind _ outputs => eval_mem outputs
-    | Send _ _ _ _ _ mem => mem
-    end.
-
   Module Seq.
     Inductive t (sig : Signature.t) : Type :=
     | Nil : t sig
     | Bind : t sig -> t sig -> t sig
     | Send : forall (command : Command.t), Command.request command ->
       list (t sig) -> t sig.
+    Arguments Nil {sig}.
+    Arguments Bind {sig} _ _.
+    Arguments Send {sig} _ _ _.
 
-    Fixpoint run {sig : Signature.t} (oracle : Oracle.t sig)
-      (outputs : Outputs.t sig) : t sig :=
+    Fixpoint run {sig : Signature.t} (oracle : Oracle.t sig) (mem : Memory.t sig)
+      (outputs : Outputs.t sig)
+      : t sig * Memory.t sig :=
       match outputs with
-      | Nil _ => 
+      | Outputs.Nil => (Nil, mem)
+      | Outputs.Bind outputs_x outputs_y =>
+        let (outputs_x, mem) := run oracle mem outputs_x in
+        let (outputs_y, mem) := run oracle mem outputs_y in
+        (Bind outputs_x outputs_y, mem)
+      | Outputs.Send _ command s request callback =>
+        match oracle with
+        | Streams.Cons inputs oracle =>
+          let inputs := inputs command in
+          match List.fold_left (fun s_mem_outputss answer =>
+            match s_mem_outputss with
+            | (None, _, _) => s_mem_outputss
+            | (Some s, mem, outputss) =>
+              match callback s answer mem with
+              | (s, mem, outputs) =>
+                let (outputs, mem) := run oracle mem outputs in
+                (s, mem, outputs :: outputss)
+              end
+            end)
+            inputs (Some s, mem, []) with
+          | (_, mem, outputss) => (Send command request (List.rev' outputss), mem)
+          end
+        end
       end.
-  End Seq.*)
+  End Seq.
 End Outputs.
 
 (** Run a computation. *)
