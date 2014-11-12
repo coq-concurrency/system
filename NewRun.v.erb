@@ -1,0 +1,67 @@
+Require Import Coq.Lists.List.
+Require Import Coq.Lists.Streams.
+Require Import Computation.
+Require Import Events.
+
+Import ListNotations.
+
+Module Oracle.
+  Definition t (sig : Signature.t) : Type :=
+    Stream (forall (command : Command.t) (A : Type),
+      list (Command.answer command * A * Memory.t sig)).
+End Oracle.
+
+(** The type of an input. *)
+Module Input.
+  (** An input is a command and an argument. *)
+  Record t : Set := New {
+    command : Command.t;
+    argument : Command.answer command}.
+End Input.
+
+(** The type of an output. *)
+Module Output.
+  (** An output is a command and an argument. *)
+  Record t : Set := New {
+    command : Command.t;
+    argument : Command.request command}.
+End Output.
+
+(*Module Request.
+  Definition t (sig : Sig.t) : Type := New {
+    A : Type;
+    command : Command.t;
+    request : }.
+
+  forall {A : Type} (command : Command.t), Command.request command ->
+    A -> (A -> Command.answer command -> t sig (option A))
+End Request.*)
+
+Module Outputs.
+  Inductive t (sig : Signature.t) : Type :=
+  | Nil : t sig
+  | Bind : t sig -> t sig -> t sig
+  | Send : forall (command : Command.t) (A : Type),
+    Command.request command -> A ->
+    (Memory.t sig -> A -> t sig) -> t sig.
+End Outputs.
+
+(** Run a computation on an initialized shared memory. *)
+Fixpoint run {sig : Signature.t} {A : Type} (oracle : Oracle.t sig)
+  (mem : Memory.t sig) (outputs : list Output.t) (x : C.t sig A)
+  : A * Memory.t sig * list Output.t :=
+  match x in C.t _ A return A  * _ * _ with
+  | C.Ret <%= "_" if version[0..2] == "8.4" %> x => (x, mem, outputs)
+  | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f =>
+    match run oracle mem outputs x with
+    | (x, mem, outputs) => run oracle mem outputs (f x)
+    end
+  | C.Read <%= "_" if version[0..2] == "8.4" %> _ => (Ref.read mem, mem, outputs)
+  | C.Write <%= "_" if version[0..2] == "8.4" %> _ v => (tt, Ref.write mem v, outputs)
+  | C.Send <%= "_" if version[0..2] == "8.4" %> _ request a handler =>
+    (*let call_back := CallBack.New a handler in
+    let (id, call_backs) := CallBacks.add call_backs call_back in
+    let output := Output.New _ id request in
+    (Some tt, call_backs, mem, output :: outputs)*)
+    (tt, mem, outputs)
+  end.
