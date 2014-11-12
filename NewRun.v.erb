@@ -58,7 +58,7 @@ Module Outputs.
         let (outputs_x, mem) := run oracle mem outputs_x in
         let (outputs_y, mem) := run oracle mem outputs_y in
         (Bind outputs_x outputs_y, mem)
-      | Outputs.Send _ command s request callback =>
+      | Outputs.Send <%= "_" if version[0..2] == "8.4" %> command s request callback =>
         match oracle with
         | Streams.Cons inputs oracle =>
           let inputs := inputs command in
@@ -101,3 +101,37 @@ Fixpoint run {sig : Signature.t} {A : Type} (mem : Memory.t sig) (x : C.t sig A)
     (tt, mem, Outputs.Send command a request (fun a answer mem =>
       run mem (handler a answer)))
   end.
+
+Module Gre.
+  Inductive t (sig : Signature.t) (I : Type) : Type :=
+  | Stop : t sig I
+  | Continue : (I -> Memory.t sig -> t sig I * Memory.t sig * Outputs.t sig) -> t sig I.
+End Gre.
+
+Module Gasp.
+  Module Handler.
+    Inductive t (sig : Signature.t) (I : Type) (A : Type) : Type :=
+    | Stop : t sig I A
+    | Continue : (I -> Memory.t sig -> t sig I A * Memory.t sig * A) -> t sig I A.
+    Arguments Stop {sig I A}.
+    Arguments Continue {sig I A} _.
+
+    Fixpoint example (fuel : nat) (sum : nat) : t [] nat unit :=
+      match fuel with
+      | O => Stop
+      | S fuel => Continue (fun n _ => (example fuel (n + sum), Memory.Nil, tt))
+      end.
+  End Handler.
+
+  Module Outputs.
+    Inductive t (sig : Signature.t) : Type :=
+    | Nil : t sig
+    | Bind : t sig -> t sig -> t sig
+    | Send : forall (command : Command.t),
+      Command.request command -> Handler.t sig (Command.answer command) (t sig) ->
+      t sig.
+    Arguments Nil {sig}.
+    Arguments Bind {sig} _ _.
+    Arguments Send {sig} _ _ _.
+  End Outputs.
+End Gasp.
