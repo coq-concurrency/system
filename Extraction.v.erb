@@ -294,32 +294,42 @@ Definition run {sig : Signature.t} (mem : Memory.t sig)
   match Run.run (CallBacks.empty _) mem [] (program argv) with
   | (result, call_backs, mem, outputs) =>
     Native.seq
+      (* Send the outputs. *)
       (fun _ => print_outputs outputs)
       (fun _ =>
+        (* Check if the program exited. *)
         match result with
-        | None => tt
-        | Some _ =>
+        | None => tt (* Exit. *)
+        | Some _ => (* Continue. *)
           let state := (call_backs, mem) in
-          (* We loop on the resulting events sent-back by the system. *)
+          (* We loop on the resulting events sent back by the system. *)
           Native.Process.fold_lines _ system state (fun state input =>
             let (call_backs, mem) := state in
+            (* Try to import the input. *)
             match Input.import input with
+            (* The input was valid. *)
             | inl (Input.New command id argument) =>
+              (* Get the corresponding callback. *)
               match CallBacks.find call_backs id with
               | None => Some state
               | Some (CallBack.New <%= "_" if version[0..2] == "8.4" %> a handler) =>
+                (* Run the callback. *)
                 match Run.run call_backs mem [] (handler a argument) with
                 | (result, call_backs, mem, outputs) =>
                   Native.seq
+                    (* Send the outputs. *)
                     (fun _ => print_outputs outputs)
                     (fun _ =>
+                      (* Check if the callback exited the program. *)
                       match result with
-                      | None => None
+                      | None => None (* `None` to terminate the fold on the inputs. *)
                       | Some a =>
                         let call_backs :=
+                          (* Check if the callback is terminated. *)
                           match a with
                           | None => call_backs
                           | Some a =>
+                            (* Update the store of the callback if it is not terminated. *)
                             let call_back := CallBack.New a handler in
                             CallBacks.update call_backs id call_back
                           end in
@@ -327,6 +337,7 @@ Definition run {sig : Signature.t} (mem : Memory.t sig)
                       end)
                 end
               end
+            (* The input was invalid. Should not happen. *)
             | inr error_message =>
               let error_message :=
                 LString.s "Input '" ++ Native.String.to_string input ++
