@@ -24,4 +24,11 @@ Module C.
     Notation "'do!' A 'in' B" := (Bind A (fun _ => B))
       (at level 200, B at level 200).
   End Notations.
+
+  Fixpoint run {A : Type} (x : t A) : A :=
+    match x with
+    | Ret <%= "_" if version[0..2] == "8.4" %> x => x
+    | Bind <%= "_ _" if version[0..2] == "8.4" %> x f => run (f (run x))
+    | Send _ _ _ => tt
+    end.
 End C.

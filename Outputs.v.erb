@@ -6,33 +6,39 @@ Import ListNotations.
 
 Module Outputs.
   Inductive t : Type :=
-  | Nil : t
+  | Ret : t
   | Bind : t -> t -> t
   | Send : forall (command : Command.t), (Command.answer command -> t) -> t.
 
-  Fixpoint run {A : Type} (x : C.t A) : A * t :=
-    match x in C.t A return A  * _ with
-    | C.Ret <%= "_" if version[0..2] == "8.4" %> x => (x, Nil)
+  Fixpoint run {A : Type} (x : C.t A) : t :=
+    match x with
+    | C.Ret <%= "_" if version[0..2] == "8.4" %> _ => Ret
     | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f =>
-      match run x with
-      | (x, outputs_x) =>
-        match run (f x) with
-        | (y, outputs_y) => (y, Bind outputs_x outputs_y)
-        end
-      end
+      Bind (run x) (run (f (C.run x)))
     | C.Send command _ handler =>
-      (tt, Send command (fun answer => snd (run (handler answer))))
+      Send command (fun answer => run (handler answer))
     end.
 End Outputs.
 
 Module System.
   Inductive t : Outputs.t -> Type :=
-  | Nil : t Outputs.Nil
-  | Bind : forall (outputs_x outputs_y : Outputs.t),
+  | Ret : t Outputs.Ret
+  | Bind : forall {outputs_x outputs_y : Outputs.t},
     t outputs_x -> t outputs_y -> t (Outputs.Bind outputs_x outputs_y)
   | Send : forall (command : Command.t)
     (handler : Command.answer command -> Outputs.t),
     (Command.request command ->
       {answer : Command.answer command & t (handler answer)}) ->
     t (Outputs.Send command handler).
+
+  Fixpoint run {A : Type} (x : C.t A) : t (snd (Outputs.run x)) -> A :=
+    match x in C.t A return t (snd (Outputs.run x)) -> A with
+    | C.Ret <%= "_" if version[0..2] == "8.4" %> x => fun _ => x
+    | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f => fun s =>
+      match s in t (Outputs.Bind _ _) return A with
+      | Bind <%= "_ _" if version[0..2] == "8.4" %> s_x s_f =>
+        let x := run x s_x in
+        run (f x) s_f
+      end
+    end.
 End System.
