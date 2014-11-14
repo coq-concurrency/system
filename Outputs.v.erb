@@ -8,17 +8,15 @@ Module Outputs.
   Inductive t (sig : Signature.t) : Type :=
   | Nil : t sig
   | Bind : t sig -> t sig -> t sig
-  | Send : forall (S : Type) (command : Command.t),
-    S -> Command.request command ->
-    (S -> Command.answer command -> Memory.t sig ->
-      option S * Memory.t sig * t sig) ->
+  | Send : forall (command : Command.t), Command.request command ->
+    (Command.answer command -> Memory.t sig -> Memory.t sig * t sig) ->
     t sig.
   Arguments Nil {sig}.
   Arguments Bind {sig} _ _.
-  Arguments Send {sig S} _ _ _ _.
+  Arguments Send {sig} _ _ _.
 
-  (*Fixpoint run {sig : Signature.t} {A : Type} (mem : Memory.t sig) (x : C.t sig A)
-    : A * Memory.t sig * Outputs.t sig :=
+  Fixpoint run {sig : Signature.t} {A : Type} (mem : Memory.t sig)
+    (x : C.t sig A) : A * Memory.t sig * Outputs.t sig :=
     match x in C.t _ A return A  * _ * _ with
     | C.Ret <%= "_" if version[0..2] == "8.4" %> x =>
       (x, mem, Outputs.Nil)
@@ -33,8 +31,10 @@ Module Outputs.
       (Ref.read mem, mem, Outputs.Nil)
     | C.Write <%= "_" if version[0..2] == "8.4" %> _ v =>
       (tt, Ref.write mem v, Outputs.Nil)
-    | C.Send <%= "_" if version[0..2] == "8.4" %> command request a handler =>
-      (tt, mem, Outputs.Send command a request (fun a answer mem =>
-        run mem (handler a answer)))
-    end.*)
+    | C.Send command request handler =>
+      (tt, mem, Outputs.Send command request (fun answer mem =>
+        match run mem (handler answer) with
+        | (_, mem, outputs) => (mem, outputs)
+        end))
+    end.
 End Outputs.
