@@ -5,36 +5,34 @@ Require Import Events.
 Import ListNotations.
 
 Module Outputs.
-  Inductive t (sig : Signature.t) : Type :=
-  | Nil : t sig
-  | Bind : t sig -> t sig -> t sig
-  | Send : forall (command : Command.t), Command.request command ->
-    (Command.answer command -> Memory.t sig -> Memory.t sig * t sig) ->
-    t sig.
-  Arguments Nil {sig}.
-  Arguments Bind {sig} _ _.
-  Arguments Send {sig} _ _ _.
+  Inductive t : Type :=
+  | Nil : t
+  | Bind : t -> t -> t
+  | Send : forall (command : Command.t), (Command.answer command -> t) -> t.
 
-  Fixpoint run {sig : Signature.t} {A : Type} (mem : Memory.t sig)
-    (x : C.t sig A) : A * Memory.t sig * Outputs.t sig :=
-    match x in C.t _ A return A  * _ * _ with
-    | C.Ret <%= "_" if version[0..2] == "8.4" %> x =>
-      (x, mem, Outputs.Nil)
+  Fixpoint run {A : Type} (x : C.t A) : A * t :=
+    match x in C.t A return A  * _ with
+    | C.Ret <%= "_" if version[0..2] == "8.4" %> x => (x, Nil)
     | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f =>
-      match run mem x with
-      | (x, mem, outputs_x) =>
-        match run mem (f x) with
-        | (y, mem, outputs_y) => (y, mem, Outputs.Bind outputs_x outputs_y)
+      match run x with
+      | (x, outputs_x) =>
+        match run (f x) with
+        | (y, outputs_y) => (y, Bind outputs_x outputs_y)
         end
       end
-    | C.Read <%= "_" if version[0..2] == "8.4" %> _ =>
-      (Ref.read mem, mem, Outputs.Nil)
-    | C.Write <%= "_" if version[0..2] == "8.4" %> _ v =>
-      (tt, Ref.write mem v, Outputs.Nil)
-    | C.Send command request handler =>
-      (tt, mem, Outputs.Send command request (fun answer mem =>
-        match run mem (handler answer) with
-        | (_, mem, outputs) => (mem, outputs)
-        end))
+    | C.Send command _ handler =>
+      (tt, Send command (fun answer => snd (run (handler answer))))
     end.
 End Outputs.
+
+Module System.
+  Inductive t : Outputs.t -> Type :=
+  | Nil : t Outputs.Nil
+  | Bind : forall (outputs_x outputs_y : Outputs.t),
+    t outputs_x -> t outputs_y -> t (Outputs.Bind outputs_x outputs_y)
+  | Send : forall (command : Command.t)
+    (handler : Command.answer command -> Outputs.t),
+    (Command.request command ->
+      {answer : Command.answer command & t (handler answer)}) ->
+    t (Outputs.Send command handler).
+End System.
