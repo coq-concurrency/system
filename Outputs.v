@@ -23,13 +23,31 @@ End Commands.
 Module SpecC.
   Inductive t : Type -> Commands.t -> Type :=
   | Ret : forall {A : Type}, A -> t A Commands.Ret
-  | Bind : forall {A B : Type} {commands1 commands2 : Commands.t},
-    t A commands1 -> (A -> t B commands2) -> t B (Commands.Bind commands1 commands2)
+  | Bind : forall {A B : Type} {commands_x commands_y : Commands.t},
+    t A commands_x -> (A -> t B commands_y) -> t B (Commands.Bind commands_x commands_y)
   | Send : forall (command : Command.t) (commands : Command.answer command -> Commands.t),
     Command.request command ->
     (forall (answer : Command.answer command), t unit (commands answer)) ->
     t unit (Commands.Send command commands).
 End SpecC.
+
+Module System.
+  Inductive t : Type :=
+  | Ret : t
+  | Bind : t -> t -> t
+  | Send : forall (command : Command.t),
+    (Command.request command -> Command.answer command * t) -> t.
+End System.
+
+Module SpecSystem.
+  Inductive t : Commands.t -> Type :=
+  | Ret : t Commands.Ret
+  | Bind : forall {A B : Type} {commands_x commands_y : Commands.t},
+    t commands_x -> t commands_y -> t (Commands.Bind commands_x commands_y)
+  | Send : forall (command : Command.t) {commands : Command.answer command -> Commands.t},
+    (Command.request command -> {answer : Command.answer command & t (commands answer)}) ->
+    t (Commands.Send command commands).
+End SpecSystem.
 
 (*Module Outputs.
   Inductive t : Type :=
