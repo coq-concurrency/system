@@ -1,0 +1,40 @@
+Require Import Coq.Lists.List.
+Require Import Computation.
+Require Import Events.
+
+Import ListNotations.
+
+Module Outputs.
+  Inductive t (sig : Signature.t) : Type :=
+  | Nil : t sig
+  | Bind : t sig -> t sig -> t sig
+  | Send : forall (S : Type) (command : Command.t),
+    S -> Command.request command ->
+    (S -> Command.answer command -> Memory.t sig ->
+      option S * Memory.t sig * t sig) ->
+    t sig.
+  Arguments Nil {sig}.
+  Arguments Bind {sig} _ _.
+  Arguments Send {sig S} _ _ _ _.
+
+  (*Fixpoint run {sig : Signature.t} {A : Type} (mem : Memory.t sig) (x : C.t sig A)
+    : A * Memory.t sig * Outputs.t sig :=
+    match x in C.t _ A return A  * _ * _ with
+    | C.Ret <%= "_" if version[0..2] == "8.4" %> x =>
+      (x, mem, Outputs.Nil)
+    | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f =>
+      match run mem x with
+      | (x, mem, outputs_x) =>
+        match run mem (f x) with
+        | (y, mem, outputs_y) => (y, mem, Outputs.Bind outputs_x outputs_y)
+        end
+      end
+    | C.Read <%= "_" if version[0..2] == "8.4" %> _ =>
+      (Ref.read mem, mem, Outputs.Nil)
+    | C.Write <%= "_" if version[0..2] == "8.4" %> _ v =>
+      (tt, Ref.write mem v, Outputs.Nil)
+    | C.Send <%= "_" if version[0..2] == "8.4" %> command request a handler =>
+      (tt, mem, Outputs.Send command a request (fun a answer mem =>
+        run mem (handler a answer)))
+    end.*)
+End Outputs.
