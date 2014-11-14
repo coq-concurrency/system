@@ -29,6 +29,13 @@ Module SpecC.
     Command.request command ->
     (forall (answer : Command.answer command), t unit (commands answer)) ->
     t unit (Commands.Send command commands).
+  
+  Fixpoint run {A : Type} {commands : Commands.t} (x : t A commands) : A :=
+    match x with
+    | Ret _ x => x
+    | Bind _ _ _ _ x f => run (f (run x))
+    | Send _ _ _ _ => tt
+    end.
 End SpecC.
 
 Module System.
@@ -49,12 +56,29 @@ Module SpecSystem.
     t (Commands.Send command commands).
 End SpecSystem.
 
-(*Module Outputs.
+Module Trace.
   Inductive t : Type :=
   | Ret : t
   | Bind : t -> t -> t
   | Send : forall (command : Command.t),
-End Outputs.*)
+    Command.request command -> Command.answer command -> t ->
+    t.
+
+  Fixpoint run {A : Type} {commands : Commands.t} (x : SpecC.t A commands) (s : SpecSystem.t commands)
+    : t.
+    destruct commands.
+    - exact Ret.
+    - inversion_clear x; inversion_clear s.
+      exact (
+        let trace_x := run _ _ X X1 in
+        let trace_y := run _ _ (X0 (SpecC.run X)) X2 in
+        Bind trace_x trace_y).
+    - inversion_clear x; inversion_clear s.
+      refine (
+        let (answer, handler_s) := X0 H in
+        Send command H _ _).
+End Trace.
+    
 
 Module System.
   Inductive t : Commands.t -> Type :=
