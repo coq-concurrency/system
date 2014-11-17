@@ -13,22 +13,34 @@ Module System.
     (Command.request command -> Command.answer command * t) -> t.
 End System.
 
-Fixpoint merge {A : Type} (x : C.t A) (system : System.t) : option (t A) :=
-    match x with
-    | C.Ret _ x =>
-      match system with
-      | System.Ret => Some (Ret x)
-      | _ => None
-      end
-    | C.Bind _ _ x f =>
-      match system with
-      | System.Bind system_x system_f =>
-        Option.bind (merge x system_x) (fun all_x =>
-        Bind all_x (fun x => merge (f x) system_f))
-      | _ => None
+Fixpoint run {A : Type} (x : C.t A) (system : System.t) : option A :=
+  match x with
+  | C.Ret _ x =>
+    match system with
+    | System.Ret => Some x
+    | _ => None
+    end
+  | C.Bind _ _ x f =>
+    match system with
+    | System.Bind system_x system_f =>
+      Option.bind (run x system_x) (fun value_x =>
+      run (f value_x) system_f)
+    | _ => None
+    end
+  | C.Send command request handler =>
+    match system with
+    | System.Send system_command system_handler =>
+      match Command.eq_dec system_command command with
+      | left Heq =>
+        let system_handler := eq_rect system_command (fun c => Command.request c -> Command.answer c * System.t)
+          system_handler command Heq in
+        let (answer, system) := system_handler request in
+        run (handler answer) system
+      | right _ => None
       end
     | _ => None
-    end.
+    end
+  end.
 
 Module All.
   Inductive t : Type -> Type  :=
