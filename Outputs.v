@@ -11,7 +11,8 @@ Module System.
   | Ret : t
   | Bind : t -> t -> t
   | Send : forall (command : Command.t),
-    (Command.request command -> Command.answer command * t) -> t.
+    (Command.request command -> Command.answer command) ->
+    (Command.request command -> t) -> t.
 End System.
 
 Module Trace.
@@ -38,12 +39,13 @@ Module Trace.
       end
     | C.Send command request handler =>
       match system with
-      | System.Send system_command system_handler =>
+      | System.Send system_command answer system =>
         match Command.eq_dec system_command command with
         | left Heq =>
-          let system_handler := eq_rect system_command (fun c => Command.request c -> Command.answer c * System.t)
-            system_handler command Heq in
-          let (answer, system) := system_handler request in
+          let answer := eq_rect system_command (fun c => Command.request c -> Command.answer c)
+            answer command Heq request in
+          let system := eq_rect system_command (fun c => Command.request c -> System.t)
+            system command Heq request in
           Option.bind (run (handler answer) system) (fun trace_handler =>
           Some (Send command request answer trace_handler))
         | right _ => None
@@ -51,34 +53,56 @@ Module Trace.
       | _ => None
       end
     end.
-End Trace.
 
-Module All.
-  Inductive t : Type -> Type  :=
-  | Ret : forall {A : Type}, A -> t A
-  | Bind : forall {A B : Type}, t A -> t B -> t B
-  | Send : forall (command : Command.t),
-    Command.request command -> (Command.request command -> Command.answer command) ->
-    (Command.answer command -> t unit) ->
-    t unit.
-
-  Fixpoint merge {A : Type} (x : C.t A) (system : System.t) : option (t A) :=
+  Fixpoint compatible {A : Type} (x : C.t A) (system : System.t) : bool :=
     match x with
-    | C.Ret _ x =>
+    | C.Ret _ _ =>
       match system with
-      | System.Ret => Some (Ret x)
-      | _ => None
+      | System.Ret => true
+      | _ => false
       end
     | C.Bind _ _ x f =>
       match system with
       | System.Bind system_x system_f =>
-        Option.bind (merge x system_x) (fun all_x =>
-        Bind all_x (fun x => merge (f x) system_f))
-      | _ => None
+        andb (compatible x system_x) (compatible (f @@ C.run x) system_f)
+      | _ => false
       end
-    | _ => None
+    | C.Send command request handler =>
+      match system with
+      | System.Send system_command answer system =>
+        match Command.eq_dec system_command command with
+        | left Heq =>
+          let answer := eq_rect system_command (fun c => Command.request c -> Command.answer c)
+            answer command Heq request in
+          let system := eq_rect system_command (fun c => Command.request c -> System.t)
+            system command Heq request in
+          compatible (handler answer) system
+        | right _ => false
+        end
+      | _ => false
+      end
     end.
-End All.
+
+  Lemma compatible_implies_result : forall {A : Type} (x : C.t A) (system : System.t),
+    compatible x system = true -> exists (trace : t), run x system = Some trace.
+    intros H x; induction x; intros system Hcompatible; destruct system;
+      simpl in *; try congruence.
+    - now exists Ret.
+    - destruct (andb_prop _ _ Hcompatible) as [Hx Hf].
+      destruct (IHx _ Hx) as [trace_x Hrun_x].
+      destruct (H _ _ Hf) as [trace_f Hrun_f].
+      exists (Bind trace_x trace_f).
+      rewrite Hrun_x; simpl.
+      now unfold apply; rewrite Hrun_f; simpl.
+    - destruct (Command.eq_dec command0 command) as [Heq | Hneq]; try congruence.
+      destruct (H _ _ Hcompatible) as [trace Hrun].
+      exists (
+        let answer := eq_rect command0 (fun c => Command.request c -> Command.answer c)
+          a command Heq r in
+        Send _ r answer trace).
+      now rewrite Hrun; simpl.
+  Qed.
+End Trace.
 
 Module Commands.
   Inductive t : Set :=
@@ -124,16 +148,44 @@ Module SpecSystem.
     t (Commands.Send command commands).
 End SpecSystem.
 
-Module Trace.
+Module SpecTrace.
   Inductive t : Type :=
   | Ret : t
   | Bind : t -> t -> t
   | Send : forall (command : Command.t),
-    Command.request command -> Command.answer command -> t ->
-    t.
+    Command.request command -> Command.answer command -> t -> t.
 
-  Fixpoint run {A : Type} {commands : Commands.t} (x : SpecC.t A commands) (s : SpecSystem.t commands)
-    : t.
+  Fixpoint run {A : Type} {commands : Commands.t} (x : SpecC.t A commands) (system : SpecSystem.t commands)
+    : t :=
+    match x with
+    | SpecC.Ret _ _ =>
+      match system with
+      | SpecSystem.Ret => Ret
+      end
+    | SpecC.Bind _ _ _ _ x f =>
+      match system with
+      | System.Bind system_x system_f =>
+        Option.bind (run x system_x) (fun trace_x =>
+        Option.bind (run (f @@ C.run x) system_f) (fun trace_y =>
+        Some (Bind trace_x trace_y)))
+      | _ => None
+      end
+    | SpecC.Send command commands request handler =>
+      match system with
+      | System.Send system_command system_handler =>
+        match Command.eq_dec system_command command with
+        | left Heq =>
+          let system_handler := eq_rect system_command (fun c => Command.request c -> Command.answer c * System.t)
+            system_handler command Heq in
+          let (answer, system) := system_handler request in
+          Option.bind (run (handler answer) system) (fun trace_handler =>
+          Some (Send command request answer trace_handler))
+        | right _ => None
+        end
+      | _ => None
+      end
+    end.
+
     destruct commands.
     - exact Ret.
     - inversion_clear x; inversion_clear s.
@@ -151,7 +203,7 @@ Module Trace.
         let x := X answer in
         let traces := run _ _ x s in
         Send command H answer traces).
-End Trace.
+End SpecTrace.
     
 
 Module System.
