@@ -168,7 +168,7 @@ Module Examples.
     Definition echo_spec (message : LString.t) : Spec.t echo.
       unfold echo.
       apply Spec.Send with (answer := message).
-      apply Spec.Send with (answer := true).
+      apply Spec.Send with (request := message) (answer := true).
       apply Spec.Ret.
     Defined.
     Compute Spec.run @@ echo_spec (LString.s "hello").
@@ -195,6 +195,16 @@ Module Examples.
             echo_system fuel))
       end.
     (* Compute Trace.run (echo 3) (echo_system 3). *)
+
+    Fixpoint echo_spec (messages : list LString.t)
+      : Spec.t (echo @@ List.length messages).
+      destruct messages as [|message messages]; unfold apply; simpl.
+      - apply Spec.Ret.
+      - apply Spec.Send with (answer := message).
+        apply Spec.Send with (request := message) (answer := true).
+        apply (echo_spec messages).
+    Defined.
+    Compute Spec.run @@ echo_spec [LString.s "hello"; LString.s "world"].
   End Repeat.
 End Examples.
 
