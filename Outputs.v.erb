@@ -13,7 +13,7 @@ Local Open Scope char.
 Module System.
   Inductive t : Type :=
   | Ret : t
-  | Bind : t -> t -> t
+  | Seq : t -> t -> t
   | Send : forall (command : Command.t),
     (Command.request command -> Command.answer command) ->
     (Command.request command -> t) -> t.
@@ -22,23 +22,23 @@ End System.
 Module Trace.
   Inductive t : Type :=
   | Ret : t
-  | Bind : t -> t -> t
+  | Seq : t -> t -> t
   | Send : forall (command : Command.t),
     Command.request command -> Command.answer command -> t -> t.
 
-  Fixpoint run {A : Type} (x : C.t A) (system : System.t) : option t :=
+  Fixpoint run (x : C.t) (system : System.t) : option t :=
     match x with
-    | C.Ret <%= "_" if version[0..2] == "8.4" %> _ =>
+    | C.Ret =>
       match system with
       | System.Ret => Some Ret
       | _ => None
       end
-    | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f =>
+    | C.Seq x y =>
       match system with
-      | System.Bind system_x system_f =>
+      | System.Seq system_x system_y =>
         Option.bind (run x system_x) (fun trace_x =>
-        Option.bind (run (f @@ C.run x) system_f) (fun trace_y =>
-        Some (Bind trace_x trace_y)))
+        Option.bind (run y system_y) (fun trace_y =>
+        Some (Seq trace_x trace_y)))
       | _ => None
       end
     | C.Send command request handler =>
@@ -58,17 +58,17 @@ Module Trace.
       end
     end.
 
-  Fixpoint compatible {A : Type} (x : C.t A) (system : System.t) : bool :=
+  Fixpoint compatible (x : C.t) (system : System.t) : bool :=
     match x with
-    | C.Ret <%= "_" if version[0..2] == "8.4" %> _ =>
+    | C.Ret =>
       match system with
       | System.Ret => true
       | _ => false
       end
-    | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f =>
+    | C.Seq x y =>
       match system with
-      | System.Bind system_x system_f =>
-        andb (compatible x system_x) (compatible (f @@ C.run x) system_f)
+      | System.Seq system_x system_y =>
+        andb (compatible x system_x) (compatible y system_y)
       | _ => false
       end
     | C.Send command request handler =>
@@ -87,7 +87,7 @@ Module Trace.
       end
     end.
 
-  Lemma compatible_implies_result : forall {A : Type} (x : C.t A) (system : System.t),
+  (*Lemma compatible_implies_result : forall {A : Type} (x : C.t A) (system : System.t),
     compatible x system = true -> exists (trace : t), run x system = Some trace.
     intros H x; induction x; intros system Hcompatible; destruct system;
       simpl in *; try congruence.
@@ -105,21 +105,20 @@ Module Trace.
           a command Heq r in
         Send _ r answer trace).
       now rewrite Hrun; simpl.
-  Qed.
+  Qed.*)
 End Trace.
 
 Module Commands.
   Inductive t : Set :=
   | Ret : t
-  | Bind : t -> t -> t
+  | Seq : t -> t -> t
   | Send : forall (command : Command.t),
     (Command.request command -> Command.answer command -> t) -> t.
 
-  Fixpoint of_program {A : Type} (x : C.t A) : t :=
+  Fixpoint of_program (x : C.t) : t :=
     match x with
-    | C.Ret <%= "_" if version[0..2] == "8.4" %> _ => Ret
-    | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f =>
-      Bind (of_program x) (of_program (f (C.run x)))
+    | C.Ret => Ret
+    | C.Seq x y => Seq (of_program x) (of_program y)
     | C.Send command _ handler =>
       Send command (fun _ answer => of_program @@ handler answer)
     end.
@@ -127,17 +126,29 @@ Module Commands.
   Fixpoint of_system (system : System.t) : t :=
     match system with
     | System.Ret => Ret
-    | System.Bind system_x system_f =>
-      Bind (of_system system_x) (of_system system_f)
+    | System.Seq system_x system_f =>
+      Seq (of_system system_x) (of_system system_f)
     | System.Send command _ system =>
       Send command (fun request _ => of_system @@ system request)
     end.
 End Commands.
 
+(*Module SystemOfC.
+  Inductive t : forall {A : Type}, C.t A -> Type :=
+  | Ret : forall {A : Type} (x : A), t (C.Ret x)
+  | Bind : forall {A B : Type} (x : C.t A) (f : A -> C.t B)
+    (system_x : t x) (system_f : ,
+    t (C.Bind )
+  (*| Bind : t -> t -> t
+  | Send : forall (command : Command.t),
+    (Command.request command -> Command.answer command) ->
+    (Command.request command -> t) -> t.*)
+End SystemOfC.*)
+
 Module Examples.
-  Definition echo_one : C.t unit :=
+  Definition echo_one : C.t :=
     C.Send Command.ConsoleRead tt (fun message =>
-      C.Send Command.ConsoleWrite message (fun _ => C.Ret tt)).
+      C.Send Command.ConsoleWrite message (fun _ => C.Ret)).
   Compute Commands.of_program echo_one.
 
   Definition echo_one_system : System.t :=
@@ -147,9 +158,9 @@ Module Examples.
 
   Compute Trace.run echo_one echo_one_system.
 
-  Fixpoint echos (fuel : nat) : C.t unit :=
+  Fixpoint echos (fuel : nat) : C.t :=
     match fuel with
-    | O => C.Ret tt
+    | O => C.Ret
     | S fuel =>
       C.Send Command.ConsoleRead tt (fun message =>
         C.Send Command.ConsoleWrite message (fun _ =>

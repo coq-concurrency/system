@@ -6,29 +6,14 @@ Import ListNotations.
 
 (** Definition of a computation. *)
 Module C.
-  (** A computation is a free monad with a send primitive. *)
-  Inductive t : Type -> Type :=
-  | Ret : forall {A : Type}, A -> t A
-  | Bind : forall {A B : Type}, t A -> (A -> t B) -> t B
+  Inductive t : Type :=
+  | Ret : t
+  | Seq : t -> t -> t
   | Send : forall (command : Command.t), Command.request command ->
-    (Command.answer command -> t unit) -> t unit.
+    (Command.answer command -> t) -> t.
 
-  (** Monadic notation. *)
   Module Notations.
-    Notation "'let!' X ':=' A 'in' B" := (Bind A (fun X => B))
-      (at level 200, X ident, A at level 100, B at level 200).
-
-    Notation "'let!' X ':' T ':=' A 'in' B" := (Bind (A := T) A (fun X => B))
-      (at level 200, X ident, A at level 100, T at level 200, B at level 200).
-
-    Notation "'do!' A 'in' B" := (Bind A (fun _ => B))
+    Notation "'do!' A 'in' B" := (Seq A B)
       (at level 200, B at level 200).
   End Notations.
-
-  Fixpoint run {A : Type} (x : t A) : A :=
-    match x with
-    | Ret <%= "_" if version[0..2] == "8.4" %> x => x
-    | Bind <%= "_ _" if version[0..2] == "8.4" %> x f => run (f (run x))
-    | Send _ _ _ => tt
-    end.
 End C.
