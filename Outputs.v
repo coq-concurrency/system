@@ -1,8 +1,61 @@
 Require Import Coq.Lists.List.
+Require Import ErrorHandlers.All.
 Require Import Computation.
 Require Import Events.
 
 Import ListNotations.
+
+Module System.
+  Inductive t : Type :=
+  | Ret : t
+  | Bind : t -> t -> t
+  | Send : forall (command : Command.t),
+    (Command.request command -> Command.answer command * t) -> t.
+End System.
+
+Fixpoint merge {A : Type} (x : C.t A) (system : System.t) : option (t A) :=
+    match x with
+    | C.Ret _ x =>
+      match system with
+      | System.Ret => Some (Ret x)
+      | _ => None
+      end
+    | C.Bind _ _ x f =>
+      match system with
+      | System.Bind system_x system_f =>
+        Option.bind (merge x system_x) (fun all_x =>
+        Bind all_x (fun x => merge (f x) system_f))
+      | _ => None
+      end
+    | _ => None
+    end.
+
+Module All.
+  Inductive t : Type -> Type  :=
+  | Ret : forall {A : Type}, A -> t A
+  | Bind : forall {A B : Type}, t A -> t B -> t B
+  | Send : forall (command : Command.t),
+    Command.request command -> (Command.request command -> Command.answer command) ->
+    (Command.answer command -> t unit) ->
+    t unit.
+
+  Fixpoint merge {A : Type} (x : C.t A) (system : System.t) : option (t A) :=
+    match x with
+    | C.Ret _ x =>
+      match system with
+      | System.Ret => Some (Ret x)
+      | _ => None
+      end
+    | C.Bind _ _ x f =>
+      match system with
+      | System.Bind system_x system_f =>
+        Option.bind (merge x system_x) (fun all_x =>
+        Bind all_x (fun x => merge (f x) system_f))
+      | _ => None
+      end
+    | _ => None
+    end.
+End All.
 
 Module Commands.
   Inductive t : Set :=
@@ -38,14 +91,6 @@ Module SpecC.
     end.
 End SpecC.
 
-Module System.
-  Inductive t : Type :=
-  | Ret : t
-  | Bind : t -> t -> t
-  | Send : forall (command : Command.t),
-    (Command.request command -> Command.answer command * t) -> t.
-End System.
-
 Module SpecSystem.
   Inductive t : Commands.t -> Type :=
   | Ret : t Commands.Ret
@@ -73,10 +118,16 @@ Module Trace.
         let trace_x := run _ _ X X1 in
         let trace_y := run _ _ (X0 (SpecC.run X)) X2 in
         Bind trace_x trace_y).
-    - inversion_clear x; inversion_clear s.
+    - generalize s; clear s.
+      inversion x.
+      inversion_clear s.
+      assert (commands0 = t0).
+      injection H2.
       refine (
-        let (answer, handler_s) := X0 H in
-        Send command H _ _).
+        let (answer, s) := X0 H1 in
+        let x := X answer in
+        let traces := run _ _ x s in
+        Send command H answer traces).
 End Trace.
     
 
