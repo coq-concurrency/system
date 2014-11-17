@@ -1,5 +1,6 @@
 Require Import Coq.Lists.List.
 Require Import ErrorHandlers.All.
+Require Import FunctionNinjas.All.
 Require Import Computation.
 Require Import Events.
 
@@ -13,34 +14,44 @@ Module System.
     (Command.request command -> Command.answer command * t) -> t.
 End System.
 
-Fixpoint run {A : Type} (x : C.t A) (system : System.t) : option A :=
-  match x with
-  | C.Ret _ x =>
-    match system with
-    | System.Ret => Some x
-    | _ => None
-    end
-  | C.Bind _ _ x f =>
-    match system with
-    | System.Bind system_x system_f =>
-      Option.bind (run x system_x) (fun value_x =>
-      run (f value_x) system_f)
-    | _ => None
-    end
-  | C.Send command request handler =>
-    match system with
-    | System.Send system_command system_handler =>
-      match Command.eq_dec system_command command with
-      | left Heq =>
-        let system_handler := eq_rect system_command (fun c => Command.request c -> Command.answer c * System.t)
-          system_handler command Heq in
-        let (answer, system) := system_handler request in
-        run (handler answer) system
-      | right _ => None
+Module Trace.
+  Inductive t : Type :=
+  | Ret : t
+  | Bind : t -> t -> t
+  | Send : forall (command : Command.t),
+    Command.request command -> Command.answer command -> t -> t.
+
+  Fixpoint run {A : Type} (x : C.t A) (system : System.t) : option t :=
+    match x with
+    | C.Ret _ _ =>
+      match system with
+      | System.Ret => Some Ret
+      | _ => None
       end
-    | _ => None
-    end
-  end.
+    | C.Bind _ _ x f =>
+      match system with
+      | System.Bind system_x system_f =>
+        Option.bind (run x system_x) (fun trace_x =>
+        Option.bind (run (f @@ C.run x) system_f) (fun trace_y =>
+        Some (Bind trace_x trace_y)))
+      | _ => None
+      end
+    | C.Send command request handler =>
+      match system with
+      | System.Send system_command system_handler =>
+        match Command.eq_dec system_command command with
+        | left Heq =>
+          let system_handler := eq_rect system_command (fun c => Command.request c -> Command.answer c * System.t)
+            system_handler command Heq in
+          let (answer, system) := system_handler request in
+          Option.bind (run (handler answer) system) (fun trace_handler =>
+          Some (Send command request answer trace_handler))
+        | right _ => None
+        end
+      | _ => None
+      end
+    end.
+End Trace.
 
 Module All.
   Inductive t : Type -> Type  :=
