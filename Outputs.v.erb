@@ -136,10 +136,19 @@ End Commands.
 Module Spec.
   Inductive t : C.t -> Type :=
   | Ret : t C.Ret
-  | Seq : forall (x y : C.t) (system_x : t x) (system_y : t y), t (C.Seq x y)
+  | Seq : forall {x y : C.t}, t x -> t y -> t (C.Seq x y)
   | Send : forall (command : Command.t) (request : Command.request command)
     (handler : Command.answer command -> C.t) (answer : Command.answer command),
     t (handler answer) -> t (C.Send command request handler).
+
+  Fixpoint run {x : C.t} (spec : t x) : Trace.t :=
+    match spec with
+    | Ret => Trace.Ret
+    | Seq <%= "_ _" if version[0..2] == "8.4" %> spec_x spec_y =>
+      Trace.Seq (run spec_x) (run spec_y)
+    | Send command request _ answer spec =>
+      Trace.Send command request answer (run spec)
+    end.
 End Spec.
 
 Module Examples.
@@ -147,14 +156,14 @@ Module Examples.
     Definition echo : C.t :=
       C.Send Command.ConsoleRead tt (fun message =>
         C.Send Command.ConsoleWrite message (fun _ => C.Ret)).
-    Compute Commands.of_program echo.
+    (* Compute Commands.of_program echo. *)
 
     Definition echo_system : System.t :=
       System.Send Command.ConsoleRead (fun _ => LString.s "hello") (fun _ =>
         System.Send Command.ConsoleWrite (fun _ => true) (fun _ => System.Ret)).
-    Compute Commands.of_system echo_system.
+    (* Compute Commands.of_system echo_system. *)
 
-    Compute Trace.run echo echo_system.
+    (* Compute Trace.run echo echo_system. *)
 
     Definition echo_spec (message : LString.t) : Spec.t echo.
       unfold echo.
@@ -162,6 +171,7 @@ Module Examples.
       apply Spec.Send with (answer := true).
       apply Spec.Ret.
     Defined.
+    Compute Spec.run @@ echo_spec (LString.s "hello").
   End One.
 
   Module Repeat.
@@ -173,7 +183,7 @@ Module Examples.
           C.Send Command.ConsoleWrite message (fun _ =>
             echo fuel))
       end.
-    Compute Commands.of_program (echo 3).
+    (* Compute Commands.of_program (echo 3). *)
 
     Fixpoint echo_system (fuel : nat) : System.t :=
       match fuel with
@@ -184,7 +194,7 @@ Module Examples.
           System.Send Command.ConsoleWrite (fun _ => true) (fun _ =>
             echo_system fuel))
       end.
-    Compute Trace.run (echo 3) (echo_system 3).
+    (* Compute Trace.run (echo 3) (echo_system 3). *)
   End Repeat.
 End Examples.
 
