@@ -18,7 +18,7 @@ End ClientSocketId.
 Module Command.
   (** The list of commands. *)
   Inductive t : Set :=
-  | Log
+  | ConsoleRead | ConsoleWrite
   | FileRead
   | ServerSocketBind
   | ClientSocketRead | ClientSocketWrite | ClientSocketClose
@@ -27,7 +27,8 @@ Module Command.
   (** The type of the parameters of a request. *)
   Definition request (command : t) : Set :=
     match command with
-    | Log => LString.t
+    | ConsoleRead => unit
+    | ConsoleWrite => LString.t
     | FileRead => LString.t
     | ServerSocketBind => N
     | ClientSocketRead => ClientSocketId.t
@@ -39,7 +40,8 @@ Module Command.
   (** The type of the parameters of an answer. *)
   Definition answer (command : t) : Set :=
     match command with
-    | Log => bool
+    | ConsoleRead => LString.t
+    | ConsoleWrite => bool
     | FileRead => option LString.t
     | ServerSocketBind => option ClientSocketId.t
     | ClientSocketRead => option LString.t

@@ -1,10 +1,13 @@
 Require Import Coq.Lists.List.
+Require Import Coq.Strings.Ascii.
 Require Import ErrorHandlers.All.
 Require Import FunctionNinjas.All.
+Require Import ListString.All.
 Require Import Computation.
 Require Import Events.
 
 Import ListNotations.
+Local Open Scope char.
 
 Module System.
   Inductive t : Type :=
@@ -108,19 +111,53 @@ Module Commands.
   Inductive t : Set :=
   | Ret : t
   | Bind : t -> t -> t
-  | Send : forall (command : Command.t), (Command.answer command -> t) -> t.
+  | Send : forall (command : Command.t),
+    (Command.request command -> Command.answer command -> t) -> t.
 
-  (*Fixpoint eval {A : Type} (x : C.t A) : t :=
+  Fixpoint of_program {A : Type} (x : C.t A) : t :=
     match x with
-    | C.Ret _ _ => Ret
-    | C.Bind _ _ x f =>
-      Bind (eval x) (eval (f (C.run x)))
+    | C.Ret <%= "_" if version[0..2] == "8.4" %> _ => Ret
+    | C.Bind <%= "_ _" if version[0..2] == "8.4" %> x f =>
+      Bind (of_program x) (of_program (f (C.run x)))
     | C.Send command _ handler =>
-      Send command (fun answer => eval (handler answer))
-    end.*)
+      Send command (fun _ answer => of_program @@ handler answer)
+    end.
+
+  Fixpoint of_system (system : System.t) : t :=
+    match system with
+    | System.Ret => Ret
+    | System.Bind system_x system_f =>
+      Bind (of_system system_x) (of_system system_f)
+    | System.Send command _ system =>
+      Send command (fun request _ => of_system @@ system request)
+    end.
 End Commands.
 
-Module SpecC.
+Module Examples.
+  Definition echo_one : C.t unit :=
+    C.Send Command.ConsoleRead tt (fun message =>
+      C.Send Command.ConsoleWrite message (fun _ => C.Ret tt)).
+  Compute Commands.of_program echo_one.
+
+  Definition echo_one_system : System.t :=
+    System.Send Command.ConsoleRead (fun _ => LString.s "hello") (fun _ =>
+      System.Send Command.ConsoleWrite (fun _ => true) (fun _ => System.Ret)).
+  Compute Commands.of_system echo_one_system.
+
+  Compute Trace.run echo_one echo_one_system.
+
+  Fixpoint echos (fuel : nat) : C.t unit :=
+    match fuel with
+    | O => C.Ret tt
+    | S fuel =>
+      C.Send Command.ConsoleRead tt (fun message =>
+        C.Send Command.ConsoleWrite message (fun _ =>
+          echos fuel))
+    end.
+  Compute Commands.of_program (echos 3).
+End Examples.
+
+(*Module SpecC.
   Inductive t : Type -> Commands.t -> Type :=
   | Ret : forall {A : Type}, A -> t A Commands.Ret
   | Bind : forall {A B : Type} {commands_x commands_y : Commands.t},
@@ -136,11 +173,6 @@ Module SpecC.
     | Bind <%= "_ _ _ _" if version[0..2] == "8.4" %> x f => run (f (run x))
     | Send _ _ _ _ => tt
     end.
-
-  (*Module Examples.
-    Definition echo_one (_ : unit) : C.t unit :=
-      C.Send 
-  End Examples.*)
 End SpecC.
 
 Module SpecSystem.
@@ -254,4 +286,4 @@ intuition.
         run (f x) s_f
       end
     end.
-End System.*)
+End System.*)*)
