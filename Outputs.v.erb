@@ -133,51 +133,59 @@ Module Commands.
     end.
 End Commands.
 
-(*Module SystemOfC.
-  Inductive t : forall {A : Type}, C.t A -> Type :=
-  | Ret : forall {A : Type} (x : A), t (C.Ret x)
-  | Bind : forall {A B : Type} (x : C.t A) (f : A -> C.t B)
-    (system_x : t x) (system_f : ,
-    t (C.Bind )
-  (*| Bind : t -> t -> t
-  | Send : forall (command : Command.t),
-    (Command.request command -> Command.answer command) ->
-    (Command.request command -> t) -> t.*)
-End SystemOfC.*)
+Module Spec.
+  Inductive t : C.t -> Type :=
+  | Ret : t C.Ret
+  | Seq : forall (x y : C.t) (system_x : t x) (system_y : t y), t (C.Seq x y)
+  | Send : forall (command : Command.t) (request : Command.request command)
+    (handler : Command.answer command -> C.t) (answer : Command.answer command),
+    t (handler answer) -> t (C.Send command request handler).
+End Spec.
 
 Module Examples.
-  Definition echo_one : C.t :=
-    C.Send Command.ConsoleRead tt (fun message =>
-      C.Send Command.ConsoleWrite message (fun _ => C.Ret)).
-  Compute Commands.of_program echo_one.
-
-  Definition echo_one_system : System.t :=
-    System.Send Command.ConsoleRead (fun _ => LString.s "hello") (fun _ =>
-      System.Send Command.ConsoleWrite (fun _ => true) (fun _ => System.Ret)).
-  Compute Commands.of_system echo_one_system.
-
-  Compute Trace.run echo_one echo_one_system.
-
-  Fixpoint echos (fuel : nat) : C.t :=
-    match fuel with
-    | O => C.Ret
-    | S fuel =>
+  Module One.
+    Definition echo : C.t :=
       C.Send Command.ConsoleRead tt (fun message =>
-        C.Send Command.ConsoleWrite message (fun _ =>
-          echos fuel))
-    end.
-  Compute Commands.of_program (echos 3).
+        C.Send Command.ConsoleWrite message (fun _ => C.Ret)).
+    Compute Commands.of_program echo.
 
-  Fixpoint echos_system (fuel : nat) : System.t :=
-    match fuel with
-    | O => System.Ret
-    | S fuel =>
-      System.Send Command.ConsoleRead (fun _ =>
-        LString.s "hello " ++ LString.of_N 10 8 None (N.of_nat fuel)) (fun _ =>
-        System.Send Command.ConsoleWrite (fun _ => true) (fun _ =>
-          echos_system fuel))
-    end.
-  Compute Trace.run (echos 3) (echos_system 3).
+    Definition echo_system : System.t :=
+      System.Send Command.ConsoleRead (fun _ => LString.s "hello") (fun _ =>
+        System.Send Command.ConsoleWrite (fun _ => true) (fun _ => System.Ret)).
+    Compute Commands.of_system echo_system.
+
+    Compute Trace.run echo echo_system.
+
+    Definition echo_spec (message : LString.t) : Spec.t echo.
+      unfold echo.
+      apply Spec.Send with (answer := message).
+      apply Spec.Send with (answer := true).
+      apply Spec.Ret.
+    Defined.
+  End One.
+
+  Module Repeat.
+    Fixpoint echo (fuel : nat) : C.t :=
+      match fuel with
+      | O => C.Ret
+      | S fuel =>
+        C.Send Command.ConsoleRead tt (fun message =>
+          C.Send Command.ConsoleWrite message (fun _ =>
+            echo fuel))
+      end.
+    Compute Commands.of_program (echo 3).
+
+    Fixpoint echo_system (fuel : nat) : System.t :=
+      match fuel with
+      | O => System.Ret
+      | S fuel =>
+        System.Send Command.ConsoleRead (fun _ =>
+          LString.s "hello " ++ LString.of_N 10 8 None (N.of_nat fuel)) (fun _ =>
+          System.Send Command.ConsoleWrite (fun _ => true) (fun _ =>
+            echo_system fuel))
+      end.
+    Compute Trace.run (echo 3) (echo_system 3).
+  End Repeat.
 End Examples.
 
 (*Module SpecC.
