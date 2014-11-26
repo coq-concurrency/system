@@ -109,33 +109,33 @@ Module Examples.
     Definition echo_spec (message : LString.t) : Spec.t echo tt.
       unfold echo.
       eapply Spec.Bind.
-      - apply Spec.Send with (answer := message).
-      - eapply Spec.Bind.
-        + apply Spec.Send with (answer := true).
-        + apply Spec.Ret.
+      apply (Spec.Send Command.ConsoleRead _ message).
+      eapply Spec.Bind.
+      apply (Spec.Send Command.ConsoleWrite message true).
+      apply Spec.Ret.
     Defined.
-    Print echo_spec.
   End One.
 
   Module Repeat.
-    Fixpoint echo (fuel : nat) : C.t :=
+    Fixpoint echo (fuel : nat) : C.t unit :=
       match fuel with
-      | O => C.Ret
+      | O => C.Ret tt
       | S fuel =>
-        C.Send Command.ConsoleRead tt (fun message =>
-          C.Send Command.ConsoleWrite message (fun _ =>
-            echo fuel))
+        let! message := C.Send Command.ConsoleRead tt in
+        do! C.Send Command.ConsoleWrite message in
+        echo fuel
       end.
 
     Fixpoint echo_spec (messages : list LString.t)
-      : Spec.t (echo @@ List.length messages).
+      : Spec.t (echo @@ List.length messages) tt.
       destruct messages as [|message messages]; unfold apply; simpl.
       - apply Spec.Ret.
-      - apply Spec.Send with (answer := message).
-        apply Spec.Send with (request := message) (answer := true).
+      - eapply Spec.Bind.
+        apply (Spec.Send Command.ConsoleRead _ message).
+        eapply Spec.Bind.
+        apply (Spec.Send Command.ConsoleWrite message true).
         apply (echo_spec messages).
     Defined.
-    Compute Spec.run @@ echo_spec [LString.s "hello"; LString.s "world"].
   End Repeat.
 End Examples.
 
