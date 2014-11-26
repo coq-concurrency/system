@@ -10,37 +10,34 @@ Require Import Events.
 Import ListNotations.
 Local Open Scope char.
 
-Module Trace.
-  Inductive t : Type :=
-  | Ret : t
-  | Bind : t -> t -> t
-  | Join : t -> t -> t
-  | First : (t + t) -> t
-  | Send : forall (command : Command.t),
-    Command.request command -> Command.answer command -> t -> t.
-End Trace.
-
 Module Spec.
   Inductive t : forall {A : Type}, C.t A -> Type :=
   | Ret : forall {A : Type} (x : A), t (C.Ret x)
   | Bind : forall {A B : Type} {x : C.t A} {f : A -> C.t B}, t x -> (forall (x : A), t (f x)) -> t (C.Bind x f)
   | Join : forall {A B : Type} {x : C.t A} {y : C.t B}, t x -> t y -> t (C.Join x y)
   | First : forall {A B : Type} {x : C.t A} {y : C.t B}, (t x + t y) -> t (C.First x y)
-  | Send : forall (command : Command.t) (request : Command.request command)
-    (handler : Command.answer command -> C.t unit) (answer : Command.answer command),
+  | Send : forall {A : Type} (command : Command.t) (request : Command.request command)
+    (handler : Command.answer command -> C.t A) (answer : Command.answer command),
     t (handler answer) -> t (C.Send command request handler).
 
-  Fixpoint run {A : Type} {x : C.t A} (spec : t x) : Trace.t :=
+  Fixpoint run {A : Type} {x : C.t A} (spec : t x) : A :=
     match spec with
-    | Ret => Trace.Ret
-    | Seq <%= "_ _" if version[0..2] == "8.4" %> spec_x spec_y =>
-      Trace.Seq (run spec_x) (run spec_y)
-    | Send command request _ answer spec =>
-      Trace.Send command request answer (run spec)
+    | Ret <%= "_" if version[0..2] == "8.4" %> x => x
+    | Bind <%= "_ _ _ _" if version[0..2] == "8.4" %> spec_x spec_f =>
+      let x := run spec_x in
+      run @@ spec_f x
+    | Join <%= "_ _ _ _" if version[0..2] == "8.4" %> spec_x spec_y =>
+      (run spec_x, run spec_y)
+    | First <%= "_ _ _ _" if version[0..2] == "8.4" %> spec_xy =>
+      match spec_xy with
+      | inl spec_x => inl @@ run spec_x
+      | inr spec_y => inr @@ run spec_y
+      end
+    | Send <%= "_" if version[0..2] == "8.4" %> _ _ _ _ spec => run spec
     end.
 End Spec.
 
-Module Examples.
+(*Module Examples.
   Module One.
     Definition echo : C.t :=
       C.Send Command.ConsoleRead tt (fun message =>
@@ -95,7 +92,7 @@ Module Examples.
     Defined.
     Compute Spec.run @@ echo_spec [LString.s "hello"; LString.s "world"].
   End Repeat.
-End Examples.
+End Examples.*)
 
 (*Module SpecC.
   Inductive t : Type -> Commands.t -> Type :=
