@@ -37,4 +37,4 @@ RUN opam install -y coq:error-handlers coq:function-ninjas coq:list-string
 # Build
 ADD . /root/system
 WORKDIR /root/system
-RUN eval `opam config env`; ./configure.sh && make -j
+RUN eval `opam config env`; ruby pp.rb && ./configure.sh && make -j
