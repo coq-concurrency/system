@@ -11,45 +11,28 @@ Import ListNotations.
 Local Open Scope char.
 
 Module Spec.
-  Inductive t : forall {A : Type}, C.t A -> Type :=
-  | Ret : forall {A : Type} (x : A), t (C.Ret x)
-  | Bind : forall {A B : Type} {x : C.t A} {f : A -> C.t B}, t x -> (forall (x : A), t (f x)) -> t (C.Bind x f)
-  | Join : forall {A B : Type} {x : C.t A} {y : C.t B}, t x -> t y -> t (C.Join x y)
-  | First : forall {A B : Type} {x : C.t A} {y : C.t B}, (t x + t y) -> t (C.First x y)
-  | Send : forall {A : Type} (command : Command.t) (request : Command.request command)
-    (handler : Command.answer command -> C.t A) (answer : Command.answer command),
-    t (handler answer) -> t (C.Send command request handler).
-
-  Fixpoint run {A : Type} {x : C.t A} (spec : t x) : A :=
-    match spec with
-    | Ret <%= "_" if version[0..2] == "8.4" %> x => x
-    | Bind <%= "_ _ _ _" if version[0..2] == "8.4" %> spec_x spec_f =>
-      let x := run spec_x in
-      run @@ spec_f x
-    | Join <%= "_ _ _ _" if version[0..2] == "8.4" %> spec_x spec_y =>
-      (run spec_x, run spec_y)
-    | First <%= "_ _ _ _" if version[0..2] == "8.4" %> spec_xy =>
-      match spec_xy with
-      | inl spec_x => inl @@ run spec_x
-      | inr spec_y => inr @@ run spec_y
-      end
-    | Send <%= "_" if version[0..2] == "8.4" %> _ _ _ _ spec => run spec
-    end.
+  Inductive t : forall {A : Type}, C.t A -> A -> Type :=
+  | Ret : forall {A : Type} (x : A), t (C.Ret x) x
+  | Bind : forall {A B : Type} {c_x : C.t A} {c_f : A -> C.t B} {x : A} {y : B},
+    t c_x x -> t (c_f x) y -> t (C.Bind c_x c_f) y
+  | Join : forall {A B : Type} {c_x : C.t A} {c_y : C.t B} {x : A} {y : B},
+    t c_x x -> t c_y y -> t (C.Join c_x c_y) (x, y)
+  | FirstLeft : forall {A B : Type} {c_x : C.t A} {c_y : C.t B} {x : A},
+    t c_x x -> t (C.First c_x c_y) (inl x)
+  | FirstRight : forall {A B : Type} {c_x : C.t A} {c_y : C.t B} {y : B},
+    t c_y y -> t (C.First c_x c_y) (inr y)
+  | Send : forall (command : Command.t) (request : Command.request command)
+    (answer : Command.answer command), t (C.Send command request) answer.
 End Spec.
 
 (*Module Examples.
+  Import C.Notations.
+
   Module One.
-    Definition echo : C.t :=
-      C.Send Command.ConsoleRead tt (fun message =>
-        C.Send Command.ConsoleWrite message (fun _ => C.Ret)).
-    (* Compute Commands.of_program echo. *)
-
-    Definition echo_system : System.t :=
-      System.Send Command.ConsoleRead (fun _ => LString.s "hello") (fun _ =>
-        System.Send Command.ConsoleWrite (fun _ => true) (fun _ => System.Ret)).
-    (* Compute Commands.of_system echo_system. *)
-
-    (* Compute Trace.run echo echo_system. *)
+    Definition echo : C.t unit :=
+      let! message := C.Send Command.ConsoleRead tt in
+      do! C.Send Command.ConsoleWrite message in
+      C.Ret tt.
 
     Definition echo_spec (message : LString.t) : Spec.t echo.
       unfold echo.
@@ -69,18 +52,6 @@ End Spec.
           C.Send Command.ConsoleWrite message (fun _ =>
             echo fuel))
       end.
-    (* Compute Commands.of_program (echo 3). *)
-
-    Fixpoint echo_system (fuel : nat) : System.t :=
-      match fuel with
-      | O => System.Ret
-      | S fuel =>
-        System.Send Command.ConsoleRead (fun _ =>
-          LString.s "hello " ++ LString.of_N 10 8 None (N.of_nat fuel)) (fun _ =>
-          System.Send Command.ConsoleWrite (fun _ => true) (fun _ =>
-            echo_system fuel))
-      end.
-    (* Compute Trace.run (echo 3) (echo_system 3). *)
 
     Fixpoint echo_spec (messages : list LString.t)
       : Spec.t (echo @@ List.length messages).

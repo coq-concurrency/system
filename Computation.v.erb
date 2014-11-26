@@ -11,8 +11,8 @@ Module C.
   | Bind : forall {A B : Type}, t A -> (A -> t B) -> t B
   | Join : forall {A B : Type}, t A -> t B -> t (A * B)
   | First : forall {A B : Type}, t A -> t B -> t (A + B)
-  | Send : forall {A : Type} (command : Command.t), Command.request command ->
-    (Command.answer command -> t A) -> t A.
+  | Send : forall (command : Command.t), Command.request command ->
+    t (Command.answer command).
 
   (** Monadic notations. *)
   Module Notations.
