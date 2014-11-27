@@ -140,4 +140,32 @@ Module Examples.
       exact (CheckingBuffer.buffer_spec_ok (print x)).
     Defined.
   End BufferSerializer.
+
+  Module Database.
+    Fixpoint serve_first (client1 client2 : ClientSocketId.t) (fuel : nat)
+      (value : LString.t) : C.t unit :=
+      match fuel with
+      | O => C.Ret tt
+      | S fuel =>
+        let! request := C.First
+          (C.Send Command.ClientSocketRead client1)
+          (C.Send Command.ClientSocketRead client2) in
+        match request with
+        | inl None | inr None => C.Ret tt
+        | inl (Some request1) => serve_first client1 client2 fuel request1
+        | inr (Some request2) => serve_first client1 client2 fuel request2
+        end
+      end.
+
+    (*Fixpoint serve (fuel : nat) (client : ClientSocketId.t) : C.t unit :=
+      match fuel with
+      | O => C.Ret tt
+      | S fuel =>
+        let! request := C.Send Command.ClientSocketRead client in
+        match request with
+        | None => C.Ret tt
+        | Some [] => 
+        end
+      end.*)
+  End Database.
 End Examples.
