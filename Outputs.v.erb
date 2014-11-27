@@ -12,7 +12,7 @@ Local Open Scope char.
 
 Module Spec.
   Inductive t : forall {A : Type}, C.t A -> A -> Type :=
-  | Ret : forall {A : Type} (x : A), t (C.Ret x) x
+  | Ret : forall {A : Type} {x : A}, t (C.Ret x) x
   | Bind : forall {A B : Type} {c_x : C.t A} {c_f : A -> C.t B} (x : A) {y : B},
     t c_x x -> t (c_f x) y -> t (C.Bind c_x c_f) y
   | Join : forall {A B : Type} {c_x : C.t A} {c_y : C.t B} {x : A} {y : B},
@@ -28,6 +28,7 @@ End Spec.
 Module Examples.
   Import C.Notations.
 
+  (** Print one message. *)
   Module One.
     Definition echo : C.t unit :=
       let! message := C.Send Command.ConsoleRead tt in
@@ -37,13 +38,14 @@ Module Examples.
     Definition echo_spec (message : LString.t) : Spec.t echo tt.
       unfold echo.
       eapply Spec.Bind.
-      apply (Spec.Send Command.ConsoleRead _ message).
+      exact (Spec.Send Command.ConsoleRead _ message).
       eapply Spec.Bind.
-      apply (Spec.Send Command.ConsoleWrite message true).
-      apply Spec.Ret.
+      exact (Spec.Send Command.ConsoleWrite message true).
+      exact Spec.Ret.
     Defined.
   End One.
 
+  (** Print a list of messages. *)
   Module Repeat.
     Fixpoint echo (fuel : nat) : C.t unit :=
       match fuel with
@@ -57,12 +59,53 @@ Module Examples.
     Fixpoint echo_spec (messages : list LString.t)
       : Spec.t (echo @@ List.length messages) tt.
       destruct messages as [|message messages]; unfold apply; simpl.
-      - apply Spec.Ret.
+      - exact Spec.Ret.
       - eapply Spec.Bind.
-        apply (Spec.Send Command.ConsoleRead _ message).
+        exact (Spec.Send Command.ConsoleRead _ message).
         eapply Spec.Bind.
-        apply (Spec.Send Command.ConsoleWrite message true).
-        apply (echo_spec messages).
+        exact (Spec.Send Command.ConsoleWrite message true).
+        exact (echo_spec messages).
     Defined.
   End Repeat.
+
+  (** A buffer splitting a message into lists. *)
+  Module Buffer.
+    Fixpoint buffer (message : LString.t) : C.t unit :=
+      match message with
+      | [] => C.Ret tt
+      | c :: message =>
+        do! C.Send Command.ConsoleWrite [c] in
+        buffer message
+      end.
+
+    Fixpoint buffer_spec (message : LString.t) : Spec.t (buffer message) tt.
+      destruct message as [|c message]; simpl.
+      - exact Spec.Ret.
+      - eapply Spec.Bind.
+        exact (Spec.Send Command.ConsoleWrite [c] true).
+        exact (buffer_spec message).
+    Defined.
+  End Buffer.
+
+  (** A buffer checking that each output operation succeeds. *)
+  Module CheckingBuffer.
+    Fixpoint buffer (message : LString.t) : C.t bool :=
+      match message with
+      | [] => C.Ret true
+      | c :: message =>
+        let! is_success := C.Send Command.ConsoleWrite [c] in
+        if is_success then
+          buffer message
+        else
+          C.Ret false
+      end.
+
+    (*Fixpoint buffer_spec (message : LString.t) : Spec.t (buffer message) tt.
+      destruct message as [|c message]; simpl.
+      - exact Spec.Ret.
+      - eapply Spec.Bind.
+        exact (Spec.Send Command.ConsoleWrite [c] true).
+        exact (buffer_spec message).
+    Defined.*)
+  End CheckingBuffer.
 End Examples.
