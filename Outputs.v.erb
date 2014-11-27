@@ -79,7 +79,7 @@ Module Examples.
       end.
 
     Fixpoint buffer_spec (message : LString.t) : Spec.t (buffer message) tt.
-      destruct message as [|c message]; simpl.
+      destruct message as [|c message].
       - exact Spec.Ret.
       - eapply Spec.Bind.
         exact (Spec.Send Command.ConsoleWrite [c] true).
@@ -100,12 +100,44 @@ Module Examples.
           C.Ret false
       end.
 
-    (*Fixpoint buffer_spec (message : LString.t) : Spec.t (buffer message) tt.
-      destruct message as [|c message]; simpl.
+    Fixpoint buffer_spec_ok (message : LString.t)
+      : Spec.t (buffer message) true.
+      destruct message as [|c message].
       - exact Spec.Ret.
       - eapply Spec.Bind.
         exact (Spec.Send Command.ConsoleWrite [c] true).
-        exact (buffer_spec message).
-    Defined.*)
+        exact (buffer_spec_ok message).
+    Defined.
+
+    Definition buffer_spec_fail (c : Ascii.ascii) (message : LString.t)
+      : Spec.t (buffer (c :: message)) false.
+      eapply Spec.Bind.
+      exact (Spec.Send Command.ConsoleWrite [c] false).
+      exact Spec.Ret.
+    Defined.
   End CheckingBuffer.
+
+  (** Print after serialization. *)
+  Module Serializer.
+    Definition serialize {A : Type} (print : A -> LString.t) (x : A)
+      : C.t bool :=
+      C.Send Command.ConsoleWrite (print x).
+
+    Definition serialize_spec {A : Type} (print : A -> LString.t) (x : A)
+      (is_success : bool) : Spec.t (serialize print x) is_success.
+      exact (Spec.Send Command.ConsoleWrite (print x) is_success).
+    Defined.
+  End Serializer.
+
+  (** Print using a buffer after serialization. *)
+  Module BufferSerializer.
+    Definition serialize {A : Type} (print : A -> LString.t) (x : A)
+      : C.t bool :=
+      CheckingBuffer.buffer (print x).
+
+    Definition serialize_spec {A : Type} (print : A -> LString.t) (x : A)
+      : Spec.t (serialize print x) true.
+      exact (CheckingBuffer.buffer_spec_ok (print x)).
+    Defined.
+  End BufferSerializer.
 End Examples.
