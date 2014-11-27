@@ -6,6 +6,14 @@ Module API.
   Record t : Type := New {
     request : Type;
     answer : request -> Type }.
+
+  Definition add (api1 api2 : t) : t := {|
+    request := request api1 + request api2;
+    answer := fun r =>
+      match r with
+      | inl r1 => answer api1 r1
+      | inr r2 => answer api2 r2
+      end |}.
 End API.
 
 Module ClientSocketId.
@@ -17,16 +25,14 @@ Module System.
     Inductive t : Set :=
     | ConsoleRead : t
     | ConsoleWrite : LString.t -> t
-    | ServerSocketBind : N -> t
     | ClientSocketRead : t.
   End Request.
 
   Module Answer.
     Inductive t : Request.t -> Set :=
-    | ConsoleRead : option LString.t -> t Request.ConsoleRead
-    | ConsoleWrite : forall {message : LString.t}, bool -> t (Request.ConsoleWrite message)
-    | ServerSocketBind : forall {port : N}, ClientSocketId.t -> t (Request.ServerSocketBind port)
-    | ClientSocketRead : option LString.t -> t Request.ClientSocketRead.
+    | ConsoleRead : LString.t -> t Request.ConsoleRead
+    | ConsoleWrite : forall {message : LString.t}, t (Request.ConsoleWrite message)
+    | ClientSocketRead : LString.t -> t Request.ClientSocketRead.
   End Answer.
 
   Definition api : API.t := API.New Request.t Answer.t.

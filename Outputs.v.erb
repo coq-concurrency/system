@@ -25,6 +25,30 @@ Module Spec.
     t (C.Send request) answer.
 End Spec.
 
+Module Examples.
+  Import C.Notations.
+
+  Module SocketsReader.
+    Definition api : API.t := {|
+      API.request := LString.t;
+      API.answer := fun _ => unit |}.
+
+Compute API.answer (API.add System.api api) (inl System.Request.ClientSocketRead).
+
+    Fixpoint read_one (fuel : nat) (client : ClientSocketId.t)
+      : C.t (API.add System.api api) unit :=
+      match fuel with
+      | O => C.Ret tt
+      | S fuel =>
+        let! message : LString.t := C.Send (api := API.add System.api api) (inl System.Request.ClientSocketRead) in
+        C.Send (inr message)
+      end.
+
+    (*Fixpoint read_all (clients : list ClientSocketId.t) : C.t System.api unit :=
+      match *)
+  End SocketsReader.
+End Examples.
+
 (*Module Examples.
   Import C.Notations.
 
