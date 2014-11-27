@@ -28,25 +28,40 @@ Module Examples.
   Import C.Notations.
 
   Module SocketsReader.
-    Definition api : API.t := {|
-      API.command := unit;
-      API.request := fun _ => LString.t;
-      API.answer := fun _ => unit |}.
-
-    Definition full_api := API.add System.api api.
+    Definition output := API.single LString.t unit.
+    Definition api := API.add System.api output.
 
     Fixpoint read_one (fuel : nat) (client : ClientSocketId.t)
-      : C.t full_api unit :=
+      : C.t api unit :=
       match fuel with
       | O => C.Ret tt
       | S fuel =>
-        let! message := C.Send full_api (inl System.ClientSocketRead) client in
-        C.Send full_api (inr tt) message
+        let! message := C.Send api (inl System.ClientSocketRead) client in
+        C.Send api (inr tt) message
       end.
 
-    (*Fixpoint read_all (clients : list ClientSocketId.t) : C.t System.api unit :=
-      match *)
+    Fixpoint read_all (clients : list ClientSocketId.t) (fuel : nat)
+      : C.t api unit :=
+      match clients with
+      | [] => C.Ret tt
+      | client :: clients =>
+        do! C.Join (read_one fuel client) (read_all clients fuel) in
+        C.Ret tt
+      end.
   End SocketsReader.
+
+  Module Database.
+    Definition api := API.single unit LString.t.
+
+    Fixpoint server (clients : list ClientSocketId.t) (fuel : nat)
+      (value : LString.t) : C.t api LString.t :=
+      match fuel with
+      | O => C.Ret value
+      | S fuel =>
+        let! message := C.Send api tt tt in
+        server clients fuel message
+      end.
+  End Database.
 End Examples.
 
 (*Module Examples.

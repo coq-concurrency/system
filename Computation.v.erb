@@ -8,6 +8,11 @@ Module API.
     request : command -> Type;
     answer : command -> Type }.
 
+  Definition single (request : Type) (answer : Type) : t := {|
+    command := unit;
+    request := fun _ => request;
+    answer := fun _ => answer |}.
+
   Definition add (api1 api2 : t) : t := {|
     command := command api1 + command api2;
     request := fun c =>
