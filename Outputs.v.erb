@@ -142,19 +142,21 @@ Module Examples.
   End BufferSerializer.
 
   Module Database.
-    Fixpoint serve_first (client1 client2 : ClientSocketId.t) (fuel : nat)
-      (value : LString.t) : C.t unit :=
+    Fixpoint serve_two (client1 client2 : ClientSocketId.t) (fuel : nat)
+      (value : LString.t) : C.t bool :=
       match fuel with
-      | O => C.Ret tt
+      | O => C.Send Command.ConsoleWrite value
       | S fuel =>
-        let! request := C.First
-          (C.Send Command.ClientSocketRead client1)
-          (C.Send Command.ClientSocketRead client2) in
-        match request with
-        | inl None | inr None => C.Ret tt
-        | inl (Some request1) => serve_first client1 client2 fuel request1
-        | inr (Some request2) => serve_first client1 client2 fuel request2
-        end
+        let! first := C.First
+          (C.Send Command.ClientSocketReadReady client1)
+          (C.Send Command.ClientSocketReadReady client2) in
+        let client :=
+          match first with
+          | inl _ => client1
+          | inr _ => client2
+          end in
+        let! request := C.Send Command.ClientSocketRead client in
+        serve_two client1 client2 fuel request
       end.
 
     (*Fixpoint serve (fuel : nat) (client : ClientSocketId.t) : C.t unit :=

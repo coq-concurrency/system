@@ -21,7 +21,7 @@ Module Command.
   | ConsoleRead | ConsoleWrite
   | FileRead
   | ServerSocketBind
-  | ClientSocketRead | ClientSocketWrite | ClientSocketClose
+  | ClientSocketReadReady | ClientSocketRead | ClientSocketWrite | ClientSocketClose
   | Time.
 
   (** The type of the parameters of a request. *)
@@ -31,6 +31,7 @@ Module Command.
     | ConsoleWrite => LString.t
     | FileRead => LString.t
     | ServerSocketBind => N
+    | ClientSocketReadReady => ClientSocketId.t
     | ClientSocketRead => ClientSocketId.t
     | ClientSocketWrite => ClientSocketId.t * LString.t
     | ClientSocketClose => ClientSocketId.t
@@ -44,7 +45,8 @@ Module Command.
     | ConsoleWrite => bool
     | FileRead => option LString.t
     | ServerSocketBind => option ClientSocketId.t
-    | ClientSocketRead => option LString.t
+    | ClientSocketReadReady => unit
+    | ClientSocketRead => LString.t
     | ClientSocketWrite => bool
     | ClientSocketClose => bool
     | Time => N
