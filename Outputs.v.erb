@@ -11,21 +11,21 @@ Import ListNotations.
 Local Open Scope char.
 
 Module Spec.
-  Inductive t : forall {A : Type}, C.t A -> A -> Type :=
+  Inductive t {api : API.t} : forall {A : Type}, C.t api A -> A -> Type :=
   | Ret : forall {A : Type} {x : A}, t (C.Ret x) x
-  | Bind : forall {A B : Type} {c_x : C.t A} {c_f : A -> C.t B} (x : A) {y : B},
-    t c_x x -> t (c_f x) y -> t (C.Bind c_x c_f) y
-  | Join : forall {A B : Type} {c_x : C.t A} {c_y : C.t B} {x : A} {y : B},
-    t c_x x -> t c_y y -> t (C.Join c_x c_y) (x, y)
-  | FirstLeft : forall {A B : Type} {c_x : C.t A} {c_y : C.t B} {x : A},
-    t c_x x -> t (C.First c_x c_y) (inl x)
-  | FirstRight : forall {A B : Type} {c_x : C.t A} {c_y : C.t B} {y : B},
-    t c_y y -> t (C.First c_x c_y) (inr y)
-  | Send : forall (command : Command.t) (request : Command.request command)
-    (answer : Command.answer command), t (C.Send command request) answer.
+  | Bind : forall {A B : Type} {c_x : C.t api A} {c_f : A -> C.t api B}
+    (x : A) {y : B}, t c_x x -> t (c_f x) y -> t (C.Bind c_x c_f) y
+  | Join : forall {A B : Type} {c_x : C.t api A} {c_y : C.t api B}
+    {x : A} {y : B}, t c_x x -> t c_y y -> t (C.Join c_x c_y) (x, y)
+  | FirstLeft : forall {A B : Type} {c_x : C.t api A} {c_y : C.t api B}
+    {x : A}, t c_x x -> t (C.First c_x c_y) (inl x)
+  | FirstRight : forall {A B : Type} {c_x : C.t api A} {c_y : C.t api B}
+    {y : B}, t c_y y -> t (C.First c_x c_y) (inr y)
+  | Send : forall (request : API.request api) (answer : API.answer api request),
+    t (C.Send request) answer.
 End Spec.
 
-Module Examples.
+(*Module Examples.
   Import C.Notations.
 
   (** Print one message. *)
@@ -170,4 +170,4 @@ Module Examples.
         end
       end.*)
   End Database.
-End Examples.
+End Examples.*)

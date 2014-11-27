@@ -1,18 +1,50 @@
 (** The definition of a computation, used to represent concurrent programs. *)
-Require Import Coq.Lists.List.
-Require Import Events.
+Require Import Coq.NArith.NArith.
+Require Import ListString.All.
 
-Import ListNotations.
+Module API.
+  Record t : Type := New {
+    request : Type;
+    answer : request -> Type }.
+End API.
+
+Module ClientSocketId.
+  Definition t : Set := N.
+End ClientSocketId.
+
+Module System.
+  Module Request.
+    Inductive t : Set :=
+    | ConsoleRead : t
+    | ConsoleWrite : LString.t -> t
+    | ServerSocketBind : N -> t
+    | ClientSocketRead : t.
+  End Request.
+
+  Module Answer.
+    Inductive t : Request.t -> Set :=
+    | ConsoleRead : option LString.t -> t Request.ConsoleRead
+    | ConsoleWrite : forall {message : LString.t}, bool -> t (Request.ConsoleWrite message)
+    | ServerSocketBind : forall {port : N}, ClientSocketId.t -> t (Request.ServerSocketBind port)
+    | ClientSocketRead : option LString.t -> t Request.ClientSocketRead.
+  End Answer.
+
+  Definition api : API.t := API.New Request.t Answer.t.
+End System.
 
 (** Definition of a computation. *)
 Module C.
-  Inductive t : Type -> Type :=
-  | Ret : forall {A : Type}, A -> t A
-  | Bind : forall {A B : Type}, t A -> (A -> t B) -> t B
-  | Join : forall {A B : Type}, t A -> t B -> t (A * B)
-  | First : forall {A B : Type}, t A -> t B -> t (A + B)
-  | Send : forall (command : Command.t), Command.request command ->
-    t (Command.answer command).
+  Inductive t (api : API.t) : Type -> Type :=
+  | Ret : forall {A : Type}, A -> t api A
+  | Bind : forall {A B : Type}, t api A -> (A -> t api B) -> t api B
+  | Join : forall {A B : Type}, t api A -> t api B -> t api (A * B)
+  | First : forall {A B : Type}, t api A -> t api B -> t api (A + B)
+  | Send : forall (request : API.request api), t api (API.answer api request).
+  Arguments Ret {api A} _.
+  Arguments Bind {api A B} _ _.
+  Arguments Join {api A B} _ _.
+  Arguments First {api A B} _ _.
+  Arguments Send {api} _.
 
   (** Monadic notations. *)
   Module Notations.
