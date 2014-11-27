@@ -31,14 +31,26 @@ Module Examples.
     Definition output := API.single LString.t unit.
     Definition api := API.add System.api output.
 
-    Fixpoint read_one (fuel : nat) (client : ClientSocketId.t)
-      : C.t api unit :=
+    Fixpoint read_one (fuel : nat) (client : ClientSocketId.t) : C.t api unit :=
       match fuel with
       | O => C.Ret tt
       | S fuel =>
         let! message := C.Send api (inl System.ClientSocketRead) client in
-        C.Send api (inr tt) message
+        do! C.Send api (inr tt) message in
+        read_one fuel client
       end.
+
+    (** We send all the messages to the client. *)
+    Fixpoint read_one_spec (messages : list LString.t) (client : ClientSocketId.t)
+      : Spec.t (read_one (List.length messages) client) tt.
+      destruct messages as [|message messages]; simpl.
+      - exact Spec.Ret.
+      - eapply Spec.Bind.
+        exact (Spec.Send (api := api) (inl System.ClientSocketRead) client message).
+        eapply Spec.Bind.
+        exact (Spec.Send (api := api) (inr tt) message tt ).
+        exact (read_one_spec messages client).
+    Defined.
 
     Fixpoint read_all (clients : list ClientSocketId.t) (fuel : nat)
       : C.t api unit :=
@@ -48,6 +60,16 @@ Module Examples.
         do! C.Join (read_one fuel client) (read_all clients fuel) in
         C.Ret tt
       end.
+
+    (** We send each message once to each client. *)
+    Fixpoint read_all_spec (messages : list LString.t) (clients : list ClientSocketId.t)
+      : Spec.t (read_all clients (List.length messages)) tt.
+      destruct clients as [|client clients]; simpl.
+      - exact Spec.Ret.
+      - eapply Spec.Bind.
+        exact (Spec.Join (read_one_spec messages client) (read_all_spec messages clients)).
+        exact Spec.Ret.
+    Defined.
   End SocketsReader.
 
   Module Database.
