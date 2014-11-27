@@ -5,7 +5,6 @@ Require Import ErrorHandlers.All.
 Require Import FunctionNinjas.All.
 Require Import ListString.All.
 Require Import Computation.
-Require Import Events.
 
 Import ListNotations.
 Local Open Scope char.
@@ -21,8 +20,8 @@ Module Spec.
     {x : A}, t c_x x -> t (C.First c_x c_y) (inl x)
   | FirstRight : forall {A B : Type} {c_x : C.t api A} {c_y : C.t api B}
     {y : B}, t c_y y -> t (C.First c_x c_y) (inr y)
-  | Send : forall (request : API.request api) (answer : API.answer api request),
-    t (C.Send request) answer.
+  | Send : forall (command : API.command api) (request : API.request api command)
+    (answer : API.answer api command), t (C.Send api command request) answer.
 End Spec.
 
 Module Examples.
@@ -30,18 +29,19 @@ Module Examples.
 
   Module SocketsReader.
     Definition api : API.t := {|
-      API.request := LString.t;
+      API.command := unit;
+      API.request := fun _ => LString.t;
       API.answer := fun _ => unit |}.
 
-Compute API.answer (API.add System.api api) (inl System.Request.ClientSocketRead).
+    Definition full_api := API.add System.api api.
 
     Fixpoint read_one (fuel : nat) (client : ClientSocketId.t)
-      : C.t (API.add System.api api) unit :=
+      : C.t full_api unit :=
       match fuel with
       | O => C.Ret tt
       | S fuel =>
-        let! message : LString.t := C.Send (api := API.add System.api api) (inl System.Request.ClientSocketRead) in
-        C.Send (inr message)
+        let! message := C.Send full_api (inl System.ClientSocketRead) client in
+        C.Send full_api (inr tt) message
       end.
 
     (*Fixpoint read_all (clients : list ClientSocketId.t) : C.t System.api unit :=

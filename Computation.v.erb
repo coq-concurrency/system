@@ -4,39 +4,56 @@ Require Import ListString.All.
 
 Module API.
   Record t : Type := New {
-    request : Type;
-    answer : request -> Type }.
+    command : Type;
+    request : command -> Type;
+    answer : command -> Type }.
 
   Definition add (api1 api2 : t) : t := {|
-    request := request api1 + request api2;
-    answer := fun r =>
-      match r with
-      | inl r1 => answer api1 r1
-      | inr r2 => answer api2 r2
+    command := command api1 + command api2;
+    request := fun c =>
+      match c with
+      | inl c1 => request api1 c1
+      | inr c2 => request api2 c2
+      end;
+    answer := fun c =>
+      match c with
+      | inl c1 => answer api1 c1
+      | inr c2 => answer api2 c2
       end |}.
 End API.
 
+(** The id of a client socket. *)
 Module ClientSocketId.
-  Definition t : Set := N.
+  (** A socket id is a natural number. *)
+  Inductive t : Set :=
+  | New : N -> t.
 End ClientSocketId.
 
 Module System.
-  Module Request.
-    Inductive t : Set :=
-    | ConsoleRead : t
-    | ConsoleWrite : LString.t -> t
-    | ClientSocketRead : t.
-  End Request.
+  (** The list of commands. *)
+  Inductive command : Set :=
+  | ConsoleRead
+  | ConsoleWrite
+  | ClientSocketRead.
 
-  Module Answer.
-    Inductive t : Request.t -> Set :=
-    | ConsoleRead : LString.t -> t Request.ConsoleRead
-    | ConsoleWrite : forall {message : LString.t}, t (Request.ConsoleWrite message)
-    | ClientSocketRead : LString.t -> t Request.ClientSocketRead.
-  End Answer.
+  (** The type of the parameters of a request. *)
+  Definition request (c : command) : Set :=
+    match c with
+    | ConsoleRead => unit
+    | ConsoleWrite => LString.t
+    | ClientSocketRead => ClientSocketId.t
+    end.
 
-  Definition api : API.t := API.New Request.t Answer.t.
-End System.
+  (** The type of the parameters of an answer. *)
+  Definition answer (c : command) : Set :=
+    match c with
+    | ConsoleRead => LString.t
+    | ConsoleWrite => unit
+    | ClientSocketRead => LString.t
+    end.
+
+  Definition api : API.t := API.New command request answer.
+End System .
 
 (** Definition of a computation. *)
 Module C.
@@ -45,12 +62,13 @@ Module C.
   | Bind : forall {A B : Type}, t api A -> (A -> t api B) -> t api B
   | Join : forall {A B : Type}, t api A -> t api B -> t api (A * B)
   | First : forall {A B : Type}, t api A -> t api B -> t api (A + B)
-  | Send : forall (request : API.request api), t api (API.answer api request).
+  | Send : forall (command : API.command api), API.request api command ->
+    t api (API.answer api command).
   Arguments Ret {api A} _.
   Arguments Bind {api A B} _ _.
   Arguments Join {api A B} _ _.
   Arguments First {api A B} _ _.
-  Arguments Send {api} _.
+  Arguments Send _ _ _.
 
   (** Monadic notations. *)
   Module Notations.
