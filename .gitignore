@@ -1,11 +1,7 @@
 Computation.v
-Extraction.v
 Outputs.v
-Run.v
 opam*/
 Makefile
-extraction/*.ml
-extraction/*.mli
 *.bak
 *.vo
 *.glob
