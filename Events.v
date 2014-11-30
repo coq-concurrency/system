@@ -17,21 +17,21 @@ End ClientSocketId.
 (** The kind of commands. *)
 Module Command.
   (** The list of commands. *)
-  Inductive t : Set :=
-  | ConsoleRead | ConsoleWrite
+  Inductive t : Type :=
+  | Read
+  | Write
   | FileRead
   | ServerSocketBind
-  | ClientSocketReadReady | ClientSocketRead | ClientSocketWrite | ClientSocketClose
+  | ClientSocketRead | ClientSocketWrite | ClientSocketClose
   | Time.
 
   (** The type of the parameters of a request. *)
-  Definition request (command : t) : Set :=
+  Definition request (command : t) : Type :=
     match command with
-    | ConsoleRead => unit
-    | ConsoleWrite => LString.t
+    | Read => unit
+    | Write => LString.t
     | FileRead => LString.t
     | ServerSocketBind => N
-    | ClientSocketReadReady => ClientSocketId.t
     | ClientSocketRead => ClientSocketId.t
     | ClientSocketWrite => ClientSocketId.t * LString.t
     | ClientSocketClose => ClientSocketId.t
@@ -39,42 +39,15 @@ Module Command.
     end.
 
   (** The type of the parameters of an answer. *)
-  Definition answer (command : t) : Set :=
+  Definition answer (command : t) : Type :=
     match command with
-    | ConsoleRead => LString.t
-    | ConsoleWrite => bool
+    | Read => LString.t
+    | Write => unit
     | FileRead => option LString.t
     | ServerSocketBind => option ClientSocketId.t
-    | ClientSocketReadReady => unit
     | ClientSocketRead => LString.t
     | ClientSocketWrite => bool
     | ClientSocketClose => bool
     | Time => N
     end.
-
-  (** Decide the equality of commands. *)
-  Definition eq_dec (command1 command2 : t) :
-    {command1 = command2} + {command1 <> command2}.
-    destruct command1; destruct command2;
-      try (left; congruence);
-      try (right; congruence).
-  Defined.
 End Command.
-
-(** The type of an input. *)
-Module Input.
-  (** An input is a command, a (fresh) channel id and an argument. *)
-  Record t : Set := New {
-    command : Command.t;
-    id : positive;
-    argument : Command.answer command }.
-End Input.
-
-(** The type of an output. *)
-Module Output.
-  (** An output is a command, a channel id and an argument. *)
-  Record t : Set := New {
-    command : Command.t;
-    id : positive;
-    argument : Command.request command }.
-End Output.

@@ -5,33 +5,34 @@ Require Import ErrorHandlers.All.
 Require Import FunctionNinjas.All.
 Require Import ListString.All.
 Require Import Computation.
+Require Import Events.
 
 Import ListNotations.
 Local Open Scope char.
 
 Module Spec.
-  Inductive t {api : API.t} : forall {A : Type}, C.t api A -> A -> Type :=
+  Inductive t : forall {A : Type}, C.t A -> A -> Type :=
   | Ret : forall {A : Type} {x : A}, t (C.Ret x) x
-  | Bind : forall {A B : Type} {c_x : C.t api A} {c_f : A -> C.t api B}
+  | Bind : forall {A B : Type} {c_x : C.t A} {c_f : A -> C.t B}
     (x : A) {y : B}, t c_x x -> t (c_f x) y -> t (C.Bind c_x c_f) y
-  | Join : forall {A B : Type} {c_x : C.t api A} {c_y : C.t api B}
+  | Join : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
     {x : A} {y : B}, t c_x x -> t c_y y -> t (C.Join c_x c_y) (x, y)
-  | FirstLeft : forall {A B : Type} {c_x : C.t api A} {c_y : C.t api B}
+  | FirstLeft : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
     {x : A}, t c_x x -> t (C.First c_x c_y) (inl x)
-  | FirstRight : forall {A B : Type} {c_x : C.t api A} {c_y : C.t api B}
+  | FirstRight : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
     {y : B}, t c_y y -> t (C.First c_x c_y) (inr y)
-  | Send : forall (command : API.command api) (request : API.request api command)
-    (answer : API.answer api command), t (C.Send api command request) answer.
+  | Send : forall (command : Command.t) (request : Command.request command)
+    (answer : Command.answer command), t (C.Send command request) answer.
 End Spec.
 
-Module Examples.
+(*Module Examples.
   Import C.Notations.
 
   Module SocketsReader.
     Definition output := API.single LString.t unit.
     Definition api := API.add System.api output.
 
-    Fixpoint read_one (fuel : nat) (client : ClientSocketId.t) : C.t api unit :=
+    Fixpoint read_one (fuel : nat) (client : ClientSocketId.t) : C.t unit :=
       match fuel with
       | O => C.Ret tt
       | S fuel =>
@@ -53,7 +54,7 @@ Module Examples.
     Defined.
 
     Fixpoint read_all (clients : list ClientSocketId.t) (fuel : nat)
-      : C.t api unit :=
+      : C.t unit :=
       match clients with
       | [] => C.Ret tt
       | client :: clients =>
@@ -76,7 +77,7 @@ Module Examples.
     Definition api := API.single unit LString.t.
 
     Fixpoint server (clients : list ClientSocketId.t) (fuel : nat)
-      (value : LString.t) : C.t api LString.t :=
+      (value : LString.t) : C.t LString.t :=
       match fuel with
       | O => C.Ret value
       | S fuel =>
@@ -84,7 +85,7 @@ Module Examples.
         server clients fuel message
       end.
   End Database.
-End Examples.
+End Examples.*)
 
 (*Module Examples.
   Import C.Notations.
