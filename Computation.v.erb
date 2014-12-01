@@ -24,4 +24,13 @@ Module C.
     Notation "'do!' A 'in' B" := (Bind A (fun _ => B))
       (at level 200, B at level 200).
   End Notations.
+
+  Import Notations.
+
+  (** Repeat a computation `n` times. *)
+  Fixpoint repeat (n : nat) (x : C.t unit) : C.t unit :=
+    match n with
+    | O => C.Ret tt
+    | S n => do! x in repeat n x
+    end.
 End C.
