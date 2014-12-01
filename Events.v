@@ -7,6 +7,13 @@ Require Import ListString.All.
 Import ListNotations.
 Local Open Scope type.
 
+(** The id of a server socket. *)
+Module ServerSocketId.
+  (** A socket id is a natural number. *)
+  Inductive t : Set :=
+  | New : N -> t.
+End ServerSocketId.
+
 (** The id of a client socket. *)
 Module ClientSocketId.
   (** A socket id is a natural number. *)
@@ -21,7 +28,7 @@ Module Command.
   | Read
   | Write
   | FileRead
-  | ServerSocketBind
+  | ServerSocketBind | ServerSocketAccept
   | ClientSocketRead | ClientSocketWrite | ClientSocketClose
   | Time.
 
@@ -32,6 +39,7 @@ Module Command.
     | Write => LString.t
     | FileRead => LString.t
     | ServerSocketBind => N
+    | ServerSocketAccept => ServerSocketId.t
     | ClientSocketRead => ClientSocketId.t
     | ClientSocketWrite => ClientSocketId.t * LString.t
     | ClientSocketClose => ClientSocketId.t
@@ -44,7 +52,8 @@ Module Command.
     | Read => LString.t
     | Write => unit
     | FileRead => option LString.t
-    | ServerSocketBind => option ClientSocketId.t
+    | ServerSocketBind => option ServerSocketId.t
+    | ServerSocketAccept => option ClientSocketId.t
     | ClientSocketRead => option LString.t
     | ClientSocketWrite => bool
     | ClientSocketClose => bool
