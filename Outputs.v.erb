@@ -10,7 +10,7 @@ Require Import Events.
 Import ListNotations.
 Local Open Scope char.
 
-Module Spec.
+Module Run.
   Inductive t : forall {A : Type}, C.t A -> A -> Type :=
   | Ret : forall {A : Type} {x : A}, t (C.Ret x) x
   | Bind : forall {A B : Type} {c_x : C.t A} {c_f : A -> C.t B}
@@ -23,7 +23,7 @@ Module Spec.
     {y : B}, t c_y y -> t (C.First c_x c_y) (inr y)
   | Send : forall (command : Command.t) (request : Command.request command)
     (answer : Command.answer command), t (C.Send command request) answer.
-End Spec.
+End Run.
 
 Module Examples.
   Import C.Notations.
@@ -34,11 +34,11 @@ Module Examples.
       let! message := C.Send Command.Read tt in
       C.Send Command.Write message.
 
-    Definition echo_spec (message : LString.t) : Spec.t echo tt.
+    Definition echo_spec (message : LString.t) : Run.t echo tt.
       unfold echo.
-      eapply Spec.Bind.
-      exact (Spec.Send Command.Read _ message).
-      exact (Spec.Send Command.Write message tt).
+      eapply Run.Bind.
+      exact (Run.Send Command.Read _ message).
+      exact (Run.Send Command.Write message tt).
     Defined.
   End One.
 
@@ -54,13 +54,13 @@ Module Examples.
       end.
 
     Fixpoint echo_spec (messages : list LString.t)
-      : Spec.t (echo @@ List.length messages) tt.
+      : Run.t (echo @@ List.length messages) tt.
       destruct messages as [|message messages]; unfold apply; simpl.
-      - exact Spec.Ret.
-      - eapply Spec.Bind.
-        exact (Spec.Send Command.Read _ message).
-        eapply Spec.Bind.
-        exact (Spec.Send Command.Write message tt).
+      - exact Run.Ret.
+      - eapply Run.Bind.
+        exact (Run.Send Command.Read _ message).
+        eapply Run.Bind.
+        exact (Run.Send Command.Write message tt).
         exact (echo_spec messages).
     Defined.
   End Repeat.
@@ -75,11 +75,11 @@ Module Examples.
         buffer message
       end.
 
-    Fixpoint buffer_spec (message : LString.t) : Spec.t (buffer message) tt.
+    Fixpoint buffer_spec (message : LString.t) : Run.t (buffer message) tt.
       destruct message as [|c message].
-      - exact Spec.Ret.
-      - eapply Spec.Bind.
-        exact (Spec.Send Command.Write [c] tt).
+      - exact Run.Ret.
+      - eapply Run.Bind.
+        exact (Run.Send Command.Write [c] tt).
         exact (buffer_spec message).
     Defined.
   End Buffer.
@@ -91,8 +91,8 @@ Module Examples.
       C.Send Command.Write (print x).
 
     Definition serialize_spec {A : Type} (print : A -> LString.t) (x : A)
-      : Spec.t (serialize print x) tt.
-      exact (Spec.Send Command.Write (print x) tt).
+      : Run.t (serialize print x) tt.
+      exact (Run.Send Command.Write (print x) tt).
     Defined.
   End Serializer.
 
@@ -103,7 +103,7 @@ Module Examples.
       Buffer.buffer (print x).
 
     Definition serialize_spec {A : Type} (print : A -> LString.t) (x : A)
-      : Spec.t (serialize print x) tt.
+      : Run.t (serialize print x) tt.
       exact (Buffer.buffer_spec (print x)).
     Defined.
   End BufferSerializer.
