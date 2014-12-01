@@ -45,7 +45,7 @@ Module Command.
     | Write => unit
     | FileRead => option LString.t
     | ServerSocketBind => option ClientSocketId.t
-    | ClientSocketRead => LString.t
+    | ClientSocketRead => option LString.t
     | ClientSocketWrite => bool
     | ClientSocketClose => bool
     | Time => N
