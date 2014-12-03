@@ -29,8 +29,8 @@ Module Run.
     eapply Bind; [exact run_x | exact run_y].
   Defined.
 
-  Definition _let {A B : Type} {e1 : A} {e2 : A -> C.t B} {r : B} (run : Run.t (let x := e1 in e2 x) r)
-    : let x := e1 in Run.t (e2 x) r :=
+  Definition _let {A B : Type} {e1 : A} {e2 : A -> C.t B} {r : B}
+    let x := e1 in Run.t (e2 x) r : (run : Run.t (let x := e1 in e2 x) r) :=
     run.
 End Run.
 
