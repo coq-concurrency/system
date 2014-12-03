@@ -23,6 +23,11 @@ Module Run.
     {y : B}, t c_y y -> t (C.First c_x c_y) (inr y)
   | Send : forall (command : Command.t) (request : Command.request command)
     (answer : Command.answer command), t (C.Send command request) answer.
+
+  Definition seq {B : Type} {c_x : C.t unit} {c_y : C.t B} {y : B}
+    (run_x : t c_x tt) (run_y : t c_y y) : t (C.Bind c_x (fun _ => c_y)) y.
+    eapply Bind; [exact run_x | exact run_y].
+  Defined.
 End Run.
 
 Module Examples.
