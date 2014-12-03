@@ -30,7 +30,7 @@ Module Run.
   Defined.
 
   Definition _let {A B : Type} {e1 : A} {e2 : A -> C.t B} {r : B}
-    let x := e1 in Run.t (e2 x) r : (run : Run.t (let x := e1 in e2 x) r) :=
+    (run : let x := e1 in Run.t (e2 x) r) : Run.t (let x := e1 in e2 x) r :=
     run.
 End Run.
 
