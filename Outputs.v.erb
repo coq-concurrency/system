@@ -34,6 +34,34 @@ Module Run.
     run.
 End Run.
 
+Module FullRun.
+  Inductive t : forall {A : Type} (c : C.t A) (D : Type) (r : D -> A),
+    (forall (d : D), Run.t c (r d)) -> Type :=
+  | Ret : forall {A D : Type} {x : A},
+    t (C.Ret x) unit (fun _ => x) (fun _ => Run.Ret)
+  | Bind : forall {A B : Type} {c_x : C.t A} {c_f : A -> C.t B}
+    {D_x : Type} {D_f : D_x -> Type} (r_x : D_x -> A) (r_f : forall (d_x : D_x), D_f d_x -> B)
+    {run_x : forall (d : D_x), Run.t c_x (r_x d)}
+    {run_f : forall (d_x : D_x) (d : D_f d_x), Run.t (c_f (r_x d_x)) (r_f d_x d)},
+    t (C.Bind c_x c_f) {d_x : D_x & D_f d_x}
+      (fun d =>
+        match d with
+        | existT d_x d_y => r_f d_x d_y
+        end)
+      (fun d =>
+        match d with
+        | existT d_x d_y => Run.Bind (r_x d_x) (run_x d_x) (run_f d_x d_y)
+        end).
+  (*| Join : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
+    {x : A} {y : B}, t c_x x -> t c_y y -> t (C.Join c_x c_y) (x, y)
+  | FirstLeft : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
+    {x : A}, t c_x x -> t (C.First c_x c_y) (inl x)
+  | FirstRight : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
+    {y : B}, t c_y y -> t (C.First c_x c_y) (inr y)
+  | Send : forall (command : Command.t) (request : Command.request command)
+    (answer : Command.answer command), t (C.Send command request) answer.*)
+End FullRun.
+
 Module Examples.
   Import C.Notations.
 
