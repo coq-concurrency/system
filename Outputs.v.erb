@@ -15,29 +15,37 @@ Module Run.
   | Ret : t C.Ret
   | Par : forall {c1 c2 : C.t}, t c1 -> t c2 -> t (C.Par c1 c2)
   | Send : forall (command : Command.t) (request : Command.request command)
-    (answer : Command.answer command) (handler : Command.answer command -> C.t),
+    (answer : Command.answer command) {handler : Command.answer command -> C.t},
     t (handler answer) -> t (C.Send command request handler).
 End Run.
 
-(*Module Examples.
-  Import C.Notations.
+Module Examples.
+  (** Hello world. *)
+  Module HelloWorld.
+    Definition program : C.t :=
+      C.Send Command.Write (LString.s "Hello world!") (fun _ => C.Ret).
 
-  (** Print one message. *)
+    Definition run : Run.t program.
+      apply (Run.Send Command.Write (LString.s "Hello world!") tt).
+      exact Run.Ret.
+    Defined.
+  End HelloWorld.
+
+  (** Echo one message. *)
   Module One.
-    Definition echo : C.t unit :=
-      let! message := C.Send Command.Read tt in
-      C.Send Command.Write message.
+    Definition program : C.t :=
+      C.Send Command.Read tt (fun message =>
+      C.Send Command.Write message (fun _ => C.Ret)).
 
-    Definition echo_spec (message : LString.t) : Run.t echo tt.
-      unfold echo.
-      eapply Run.Bind.
-      exact (Run.Send Command.Read _ message).
-      exact (Run.Send Command.Write message tt).
+    Definition spec (message : LString.t) : Run.t program.
+      apply (Run.Send Command.Read tt message).
+      apply (Run.Send Command.Write message tt).
+      exact Run.Ret.
     Defined.
   End One.
 
-  (** Print a list of messages. *)
-  Module Repeat.
+  (*(** Echo a list of messages in order. *)
+  Module Ordered.
     Fixpoint echo (fuel : nat) : C.t unit :=
       match fuel with
       | O => C.Ret tt
@@ -57,7 +65,30 @@ End Run.
         exact (Run.Send Command.Write message tt).
         exact (echo_spec messages).
     Defined.
-  End Repeat.
+  End Ordered.
+
+  (** Echo a list of messages in parallel. *)
+  Module Unordered.
+    Fixpoint echo (fuel : nat) : C.t unit :=
+      match fuel with
+      | O => C.Ret tt
+      | S fuel =>
+        let! message := C.Send Command.Read tt in
+        do! C.Send Command.Write message in
+        echo fuel
+      end.
+
+    Fixpoint echo_spec (messages : list LString.t)
+      : Run.t (echo @@ List.length messages) tt.
+      destruct messages as [|message messages]; unfold apply; simpl.
+      - exact Run.Ret.
+      - eapply Run.Bind.
+        exact (Run.Send Command.Read _ message).
+        eapply Run.Bind.
+        exact (Run.Send Command.Write message tt).
+        exact (echo_spec messages).
+    Defined.
+  End Unordered.
 
   (** A buffer splitting a message into lists. *)
   Module Buffer.
@@ -100,5 +131,5 @@ End Run.
       : Run.t (serialize print x) tt.
       exact (Buffer.buffer_spec (print x)).
     Defined.
-  End BufferSerializer.
-End Examples.*)
+  End BufferSerializer.*)
+End Examples.
