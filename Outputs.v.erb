@@ -11,58 +11,15 @@ Import ListNotations.
 Local Open Scope char.
 
 Module Run.
-  Inductive t : forall {A : Type}, C.t A -> A -> Type :=
-  | Ret : forall {A : Type} {x : A}, t (C.Ret x) x
-  | Bind : forall {A B : Type} {c_x : C.t A} {c_f : A -> C.t B}
-    (x : A) {y : B}, t c_x x -> t (c_f x) y -> t (C.Bind c_x c_f) y
-  | Join : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
-    {x : A} {y : B}, t c_x x -> t c_y y -> t (C.Join c_x c_y) (x, y)
-  | FirstLeft : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
-    {x : A}, t c_x x -> t (C.First c_x c_y) (inl x)
-  | FirstRight : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
-    {y : B}, t c_y y -> t (C.First c_x c_y) (inr y)
+  Inductive t : C.t -> Type :=
+  | Ret : t C.Ret
+  | Par : forall {c1 c2 : C.t}, t c1 -> t c2 -> t (C.Par c1 c2)
   | Send : forall (command : Command.t) (request : Command.request command)
-    (answer : Command.answer command), t (C.Send command request) answer.
-
-  Definition seq {B : Type} {c_x : C.t unit} {c_y : C.t B} {y : B}
-    (run_x : t c_x tt) (run_y : t c_y y) : t (C.Bind c_x (fun _ => c_y)) y.
-    eapply Bind; [exact run_x | exact run_y].
-  Defined.
-
-  Definition _let {A B : Type} {e1 : A} {e2 : A -> C.t B} {r : B}
-    (run : let x := e1 in Run.t (e2 x) r) : Run.t (let x := e1 in e2 x) r :=
-    run.
+    (answer : Command.answer command) (handler : Command.answer command -> C.t),
+    t (handler answer) -> t (C.Send command request handler).
 End Run.
 
-Module FullRun.
-  Inductive t : forall {A : Type} (c : C.t A) (D : Type) (r : D -> A),
-    (forall (d : D), Run.t c (r d)) -> Type :=
-  | Ret : forall {A D : Type} {x : A},
-    t (C.Ret x) unit (fun _ => x) (fun _ => Run.Ret)
-  | Bind : forall {A B : Type} {c_x : C.t A} {c_f : A -> C.t B}
-    {D_x : Type} {D_f : D_x -> Type} (r_x : D_x -> A) (r_f : forall (d_x : D_x), D_f d_x -> B)
-    {run_x : forall (d : D_x), Run.t c_x (r_x d)}
-    {run_f : forall (d_x : D_x) (d : D_f d_x), Run.t (c_f (r_x d_x)) (r_f d_x d)},
-    t (C.Bind c_x c_f) {d_x : D_x & D_f d_x}
-      (fun d =>
-        match d with
-        | existT d_x d_y => r_f d_x d_y
-        end)
-      (fun d =>
-        match d with
-        | existT d_x d_y => Run.Bind (r_x d_x) (run_x d_x) (run_f d_x d_y)
-        end).
-  (*| Join : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
-    {x : A} {y : B}, t c_x x -> t c_y y -> t (C.Join c_x c_y) (x, y)
-  | FirstLeft : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
-    {x : A}, t c_x x -> t (C.First c_x c_y) (inl x)
-  | FirstRight : forall {A B : Type} {c_x : C.t A} {c_y : C.t B}
-    {y : B}, t c_y y -> t (C.First c_x c_y) (inr y)
-  | Send : forall (command : Command.t) (request : Command.request command)
-    (answer : Command.answer command), t (C.Send command request) answer.*)
-End FullRun.
-
-Module Examples.
+(*Module Examples.
   Import C.Notations.
 
   (** Print one message. *)
@@ -144,4 +101,4 @@ Module Examples.
       exact (Buffer.buffer_spec (print x)).
     Defined.
   End BufferSerializer.
-End Examples.
+End Examples.*)

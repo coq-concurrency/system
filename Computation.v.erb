@@ -5,32 +5,9 @@ Require Import Events.
 
 (** Definition of a computation. *)
 Module C.
-  Inductive t : Type -> Type :=
-  | Ret : forall {A : Type}, A -> t A
-  | Bind : forall {A B : Type}, t A -> (A -> t B) -> t B
-  | Join : forall {A B : Type}, t A -> t B -> t (A * B)
-  | First : forall {A B : Type}, t A -> t B -> t (A + B)
+  Inductive t : Type :=
+  | Ret : t
+  | Par : t -> t -> t
   | Send : forall (command : Command.t), Command.request command ->
-    t (Command.answer command).
-
-  (** Monadic notations. *)
-  Module Notations.
-    Notation "'let!' X ':=' A 'in' B" := (Bind A (fun X => B))
-      (at level 200, X ident, A at level 100, B at level 200).
-
-    Notation "'let!' X ':' T ':=' A 'in' B" := (Bind (A := T) A (fun X => B))
-      (at level 200, X ident, A at level 100, T at level 200, B at level 200).
-
-    Notation "'do!' A 'in' B" := (Bind A (fun _ => B))
-      (at level 200, B at level 200).
-  End Notations.
-
-  Import Notations.
-
-  (** Repeat a computation `n` times. *)
-  Fixpoint repeat (n : nat) (x : C.t unit) : C.t unit :=
-    match n with
-    | O => C.Ret tt
-    | S n => do! x in repeat n x
-    end.
+    (Command.answer command -> t) -> t.
 End C.
