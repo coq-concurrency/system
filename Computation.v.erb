@@ -10,4 +10,8 @@ Module C.
   | Par : t -> t -> t
   | Send : forall (command : Command.t), Command.request command ->
     (Command.answer command -> t) -> t.
+
+  Module Notations.
+    TODO
+  End Notations.
 End C.
