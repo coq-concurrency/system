@@ -12,6 +12,10 @@ Module C.
     (Command.answer command -> t) -> t.
 
   Module Notations.
-    TODO
+    Notation "'let!' A ':=' C '@' R 'in' X" := (Send C R (fun A => X))
+      (at level 200, A ident, C at level 100, R at level 100, X at level 200).
+
+    Notation "'do!' C '@' R 'in' X" := (Send C R (fun _ => X))
+      (at level 200, C at level 100, R at level 100, X at level 200).
   End Notations.
 End C.

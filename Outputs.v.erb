@@ -20,10 +20,13 @@ Module Run.
 End Run.
 
 Module Examples.
+  Import C.Notations.
+
   (** Hello world. *)
   Module HelloWorld.
     Definition program : C.t :=
-      C.Send Command.Write (LString.s "Hello world!") (fun _ => C.Ret).
+      do! Command.Write @ LString.s "Hello world!" in
+      C.Ret.
 
     Definition run : Run.t program.
       apply (Run.Send Command.Write (LString.s "Hello world!") tt).
@@ -34,8 +37,9 @@ Module Examples.
   (** Echo one message. *)
   Module One.
     Definition program : C.t :=
-      C.Send Command.Read tt (fun message =>
-      C.Send Command.Write message (fun _ => C.Ret)).
+      let! message := Command.Read @ tt in
+      do! Command.Write @ message in
+      C.Ret.
 
     Definition spec (message : LString.t) : Run.t program.
       apply (Run.Send Command.Read tt message).
