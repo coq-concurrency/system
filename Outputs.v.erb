@@ -35,7 +35,7 @@ Module Examples.
   End HelloWorld.
 
   (** Echo one message. *)
-  Module One.
+  Module EchoOne.
     Definition program : C.t :=
       let! message := Command.Read @ tt in
       do! Command.Write @ message in
@@ -46,55 +46,54 @@ Module Examples.
       apply (Run.Send Command.Write message tt).
       exact Run.Ret.
     Defined.
-  End One.
+  End EchoOne.
 
-  (*(** Echo a list of messages in order. *)
-  Module Ordered.
-    Fixpoint echo (fuel : nat) : C.t unit :=
+  (** Echo a list of messages in sequence. *)
+  Module EchoOrdered.
+    Fixpoint program (fuel : nat) : C.t :=
       match fuel with
-      | O => C.Ret tt
+      | O => C.Ret
       | S fuel =>
-        let! message := C.Send Command.Read tt in
-        do! C.Send Command.Write message in
-        echo fuel
+        let! message := Command.Read @ tt in
+        do! Command.Write @ message in
+        program fuel
       end.
 
-    Fixpoint echo_spec (messages : list LString.t)
-      : Run.t (echo @@ List.length messages) tt.
-      destruct messages as [|message messages]; unfold apply; simpl.
+    Fixpoint spec (messages : list LString.t)
+      : Run.t (program (List.length messages)).
+      destruct messages as [|message messages].
       - exact Run.Ret.
-      - eapply Run.Bind.
-        exact (Run.Send Command.Read _ message).
-        eapply Run.Bind.
-        exact (Run.Send Command.Write message tt).
-        exact (echo_spec messages).
+      - apply (Run.Send Command.Read _ message).
+        apply (Run.Send Command.Write message tt).
+        exact (spec messages).
     Defined.
-  End Ordered.
+  End EchoOrdered.
 
   (** Echo a list of messages in parallel. *)
-  Module Unordered.
-    Fixpoint echo (fuel : nat) : C.t unit :=
+  Module EchoUnordered.
+    Fixpoint program (fuel : nat) : C.t :=
       match fuel with
-      | O => C.Ret tt
+      | O => C.Ret
       | S fuel =>
-        let! message := C.Send Command.Read tt in
-        do! C.Send Command.Write message in
-        echo fuel
+        C.Par (program fuel) (
+          let! message := Command.Read @ tt in
+          do! Command.Write @ message in
+          C.Ret)
       end.
 
-    Fixpoint echo_spec (messages : list LString.t)
-      : Run.t (echo @@ List.length messages) tt.
-      destruct messages as [|message messages]; unfold apply; simpl.
+    Fixpoint spec (messages : list LString.t)
+      : Run.t (program (List.length messages)).
+      destruct messages as [|message messages].
       - exact Run.Ret.
-      - eapply Run.Bind.
-        exact (Run.Send Command.Read _ message).
-        eapply Run.Bind.
-        exact (Run.Send Command.Write message tt).
-        exact (echo_spec messages).
+      - apply Run.Par.
+        * exact (spec messages).
+        * apply (Run.Send Command.Read _ message).
+          apply (Run.Send Command.Write message tt).
+          exact Run.Ret.
     Defined.
-  End Unordered.
+  End EchoUnordered.
 
-  (** A buffer splitting a message into lists. *)
+  (*(** A buffer splitting a message into lists. *)
   Module Buffer.
     Fixpoint buffer (message : LString.t) : C.t unit :=
       match message with
