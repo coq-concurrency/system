@@ -41,7 +41,7 @@ Module Examples.
       do! Command.Write @ message in
       C.Ret.
 
-    Definition spec (message : LString.t) : Run.t program.
+    Definition run (message : LString.t) : Run.t program.
       apply (Run.Send Command.Read tt message).
       apply (Run.Send Command.Write message tt).
       exact Run.Ret.
@@ -59,13 +59,13 @@ Module Examples.
         program fuel
       end.
 
-    Fixpoint spec (messages : list LString.t)
+    Fixpoint run (messages : list LString.t)
       : Run.t (program (List.length messages)).
       destruct messages as [|message messages].
       - exact Run.Ret.
       - apply (Run.Send Command.Read _ message).
         apply (Run.Send Command.Write message tt).
-        exact (spec messages).
+        exact (run messages).
     Defined.
   End EchoOrdered.
 
@@ -81,12 +81,12 @@ Module Examples.
           C.Ret)
       end.
 
-    Fixpoint spec (messages : list LString.t)
+    Fixpoint run (messages : list LString.t)
       : Run.t (program (List.length messages)).
       destruct messages as [|message messages].
       - exact Run.Ret.
       - apply Run.Par.
-        * exact (spec messages).
+        * exact (run messages).
         * apply (Run.Send Command.Read _ message).
           apply (Run.Send Command.Write message tt).
           exact Run.Ret.
@@ -124,48 +124,36 @@ Module Examples.
       | None => C.Ret
       | Some server_socket => accept_clients server_socket fuel
       end.
-  End TimeServer.
 
-  (*(** A buffer splitting a message into lists. *)
-  Module Buffer.
-    Fixpoint buffer (message : LString.t) : C.t unit :=
-      match message with
-      | [] => C.Ret tt
-      | c :: message =>
-        do! C.Send Command.Write [c] in
-        buffer message
-      end.
+    Definition run_handle_client (client_socket : ClientSocketId.t) (time : N)
+      : Run.t (handle_client client_socket).
+      apply (Run.Send Command.Time tt time).
+      apply (Run.Send Command.ClientSocketWrite (client_socket, _) true).
+      apply (Run.Send Command.ClientSocketClose client_socket true).
+      exact Run.Ret.
+    Defined.
 
-    Fixpoint buffer_spec (message : LString.t) : Run.t (buffer message) tt.
-      destruct message as [|c message].
+    Fixpoint run_accept_clients (server_socket : ServerSocketId.t)
+      (client_sockets_times : list (ClientSocketId.t * N))
+      : Run.t (accept_clients server_socket (List.length client_sockets_times)).
+      destruct client_sockets_times as [| [client_socket time] client_sockets_times].
       - exact Run.Ret.
-      - eapply Run.Bind.
-        exact (Run.Send Command.Write [c] tt).
-        exact (buffer_spec message).
+      - apply Run.Par.
+        * exact (run_accept_clients server_socket client_sockets_times).
+        * apply (Run.Send Command.ServerSocketAccept server_socket (Some client_socket)).
+          exact (run_handle_client client_socket time).
     Defined.
-  End Buffer.
 
-  (** Print after serialization. *)
-  Module Serializer.
-    Definition serialize {A : Type} (print : A -> LString.t) (x : A)
-      : C.t unit :=
-      C.Send Command.Write (print x).
-
-    Definition serialize_spec {A : Type} (print : A -> LString.t) (x : A)
-      : Run.t (serialize print x) tt.
-      exact (Run.Send Command.Write (print x) tt).
+    Definition run_unbound (port : N) (fuel : nat) : Run.t (program port fuel).
+      apply (Run.Send Command.ServerSocketBind port None).
+      exact Run.Ret.
     Defined.
-  End Serializer.
 
-  (** Print using a buffer after serialization. *)
-  Module BufferSerializer.
-    Definition serialize {A : Type} (print : A -> LString.t) (x : A)
-      : C.t unit :=
-      Buffer.buffer (print x).
-
-    Definition serialize_spec {A : Type} (print : A -> LString.t) (x : A)
-      : Run.t (serialize print x) tt.
-      exact (Buffer.buffer_spec (print x)).
+    Definition run_bound (port : N) (server_socket : ServerSocketId.t)
+      (client_sockets_times : list (ClientSocketId.t * N))
+      : Run.t (program port (List.length client_sockets_times)).
+      apply (Run.Send Command.ServerSocketBind port (Some server_socket)).
+      exact (run_accept_clients server_socket client_sockets_times).
     Defined.
-  End BufferSerializer.*)
+  End TimeServer.
 End Examples.
