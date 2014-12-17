@@ -93,6 +93,39 @@ Module Examples.
     Defined.
   End EchoUnordered.
 
+  Module TimeServer.
+    Parameter string_of_time : N -> LString.t.
+
+    Definition handle_client (client_socket : ClientSocketId.t) : C.t :=
+      let! time := Command.Time @ tt in
+      let message := string_of_time time in
+      let! is_written := Command.ClientSocketWrite @ (client_socket, message) in
+      if is_written then
+        do! Command.ClientSocketClose @ client_socket in
+        C.Ret
+      else
+        C.Ret.
+
+    Fixpoint accept_clients (server_socket : ServerSocketId.t) (fuel : nat) : C.t :=
+      match fuel with
+      | O => C.Ret
+      | S fuel =>
+        C.Par (accept_clients server_socket fuel) (
+          let! client_socket := Command.ServerSocketAccept @ server_socket in
+          match client_socket with
+          | None => C.Ret
+          | Some client_socket => handle_client client_socket
+          end)
+      end.
+
+    Definition program (port : N) (fuel : nat) : C.t :=
+      let! server_socket := Command.ServerSocketBind @ port in
+      match server_socket with
+      | None => C.Ret
+      | Some server_socket => accept_clients server_socket fuel
+      end.
+  End TimeServer.
+
   (*(** A buffer splitting a message into lists. *)
   Module Buffer.
     Fixpoint buffer (message : LString.t) : C.t unit :=
