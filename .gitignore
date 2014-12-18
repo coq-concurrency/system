@@ -1,7 +1,6 @@
-Computation.v
-Outputs.v
 opam*/
 Makefile
+.coq-native/
 *.bak
 *.vo
 *.glob
