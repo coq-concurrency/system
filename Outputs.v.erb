@@ -74,11 +74,7 @@ Module Examples.
     Fixpoint program (fuel : nat) : C.t :=
       match fuel with
       | O => C.Ret
-      | S fuel =>
-        C.Par (program fuel) (
-          let! message := Command.Read @ tt in
-          do! Command.Write @ message in
-          C.Ret)
+      | S fuel => C.Par EchoOne.program (program fuel)
       end.
 
     Fixpoint run (messages : list LString.t)
@@ -86,10 +82,8 @@ Module Examples.
       destruct messages as [|message messages].
       - exact Run.Ret.
       - apply Run.Par.
+        * exact (EchoOne.run message).
         * exact (run messages).
-        * apply (Run.Send Command.Read _ message).
-          apply (Run.Send Command.Write message tt).
-          exact Run.Ret.
     Defined.
   End EchoUnordered.
 
