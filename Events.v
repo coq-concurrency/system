@@ -25,6 +25,8 @@ End ClientSocketId.
 Module Command.
   (** The list of commands. *)
   Inductive t : Type :=
+  | Read (A : Type)
+  | Write (A : Type)
   | ConsoleRead
   | ConsoleWrite
   | FileRead
@@ -35,6 +37,8 @@ Module Command.
   (** The type of the parameters of a request. *)
   Definition request (command : t) : Type :=
     match command with
+    | Read _ => unit
+    | Write A => A
     | ConsoleRead => unit
     | ConsoleWrite => LString.t
     | FileRead => LString.t
@@ -49,6 +53,8 @@ Module Command.
   (** The type of the parameters of an answer. *)
   Definition answer (command : t) : Type :=
     match command with
+    | Read A => A
+    | Write _ => unit
     | ConsoleRead => LString.t
     | ConsoleWrite => unit
     | FileRead => option LString.t
