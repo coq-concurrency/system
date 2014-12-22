@@ -5,11 +5,22 @@ Require Import Events.
 
 (** Definition of a computation. *)
 Module C.
-  Inductive t : Type :=
+  CoInductive t : Type :=
   | Ret : t
   | Par : t -> t -> t
   | Send : forall (command : Command.t), Command.request command ->
     (Command.answer command -> t) -> t.
+
+  Definition step (c : t) : t :=
+    match c with
+    | Ret => Ret
+    | Par c1 c2 => Par c1 c2
+    | Send command request handler => Send command request handler
+    end.
+
+  Lemma step_eq (c : t) : c = step c.
+    destruct c; reflexivity.
+  Qed.
 
   Module Notations.
     Notation "'let!' A ':=' C '@' R 'in' X" := (Send C R (fun A => X))

@@ -1,4 +1,5 @@
 Require Import Coq.Lists.List.
+Require Import Coq.Lists.Streams.
 Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.Ascii.
 Require Import ErrorHandlers.All.
@@ -10,7 +11,7 @@ Import ListNotations.
 Local Open Scope char.
 
 Module Run.
-  Inductive t : C.t -> Type :=
+  CoInductive t : C.t -> Type :=
   | Ret : t C.Ret
   | Par : forall {c1 c2 : C.t}, t c1 -> t c2 -> t (C.Par c1 c2)
   | Send : forall (command : Command.t) (request : Command.request command)
@@ -158,4 +159,22 @@ Module Examples.
       exact (run_accept_clients server_socket client_sockets_times).
     Defined.
   End TimeServer.
+
+  Module HandlePar.
+    CoFixpoint program {A : Type} (handle : A -> C.t) : C.t :=
+      C.Par (program handle) (
+        let! message := Command.Read A @ tt in
+        handle message).
+
+    CoFixpoint run {A : Type} (handle : A -> C.t)
+      (run_handle : forall (message : A), Run.t (handle message))
+      (messages : Stream A) : Run.t (program handle).
+      destruct messages as [message messages].
+      rewrite C.step_eq.
+      apply Run.Par.
+      - exact (run _ handle  run_handle messages).
+      - apply (Run.Send (Command.Read _) tt message).
+        exact (run_handle message).
+    Defined.
+  End HandlePar.
 End Examples.
