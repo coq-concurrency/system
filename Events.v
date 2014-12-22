@@ -25,8 +25,8 @@ End ClientSocketId.
 Module Command.
   (** The list of commands. *)
   Inductive t : Type :=
-  | Read
-  | Write
+  | ConsoleRead
+  | ConsoleWrite
   | FileRead
   | ServerSocketBind | ServerSocketAccept
   | ClientSocketRead | ClientSocketWrite | ClientSocketClose
@@ -35,8 +35,8 @@ Module Command.
   (** The type of the parameters of a request. *)
   Definition request (command : t) : Type :=
     match command with
-    | Read => unit
-    | Write => LString.t
+    | ConsoleRead => unit
+    | ConsoleWrite => LString.t
     | FileRead => LString.t
     | ServerSocketBind => N
     | ServerSocketAccept => ServerSocketId.t
@@ -49,8 +49,8 @@ Module Command.
   (** The type of the parameters of an answer. *)
   Definition answer (command : t) : Type :=
     match command with
-    | Read => LString.t
-    | Write => unit
+    | ConsoleRead => LString.t
+    | ConsoleWrite => unit
     | FileRead => option LString.t
     | ServerSocketBind => option ServerSocketId.t
     | ServerSocketAccept => option ClientSocketId.t

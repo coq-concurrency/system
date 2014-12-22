@@ -24,11 +24,11 @@ Module Examples.
   (** Hello world. *)
   Module HelloWorld.
     Definition program : C.t :=
-      do! Command.Write @ LString.s "Hello world!" in
+      do! Command.ConsoleWrite @ LString.s "Hello world!" in
       C.Ret.
 
     Definition run : Run.t program.
-      apply (Run.Send Command.Write (LString.s "Hello world!") tt).
+      apply (Run.Send Command.ConsoleWrite (LString.s "Hello world!") tt).
       exact Run.Ret.
     Defined.
   End HelloWorld.
@@ -36,13 +36,13 @@ Module Examples.
   (** Echo one message. *)
   Module EchoOne.
     Definition program : C.t :=
-      let! message := Command.Read @ tt in
-      do! Command.Write @ message in
+      let! message := Command.ConsoleRead @ tt in
+      do! Command.ConsoleWrite @ message in
       C.Ret.
 
     Definition run (message : LString.t) : Run.t program.
-      apply (Run.Send Command.Read tt message).
-      apply (Run.Send Command.Write message tt).
+      apply (Run.Send Command.ConsoleRead tt message).
+      apply (Run.Send Command.ConsoleWrite message tt).
       exact Run.Ret.
     Defined.
   End EchoOne.
@@ -53,8 +53,8 @@ Module Examples.
       match fuel with
       | O => C.Ret
       | S fuel =>
-        let! message := Command.Read @ tt in
-        do! Command.Write @ message in
+        let! message := Command.ConsoleRead @ tt in
+        do! Command.ConsoleWrite @ message in
         program fuel
       end.
 
@@ -62,8 +62,8 @@ Module Examples.
       : Run.t (program (List.length messages)).
       destruct messages as [|message messages].
       - exact Run.Ret.
-      - apply (Run.Send Command.Read _ message).
-        apply (Run.Send Command.Write message tt).
+      - apply (Run.Send Command.ConsoleRead _ message).
+        apply (Run.Send Command.ConsoleWrite message tt).
         exact (run messages).
     Defined.
   End EchoOrdered.
