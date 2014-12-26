@@ -1,8 +1,4 @@
 (** The definition of a computation, used to represent concurrent programs. *)
-Require Import Coq.NArith.NArith.
-Require Import ListString.All.
-
-(** Definition of a computation. *)
 Module C.
   Inductive t : Type :=
   | Ret : t

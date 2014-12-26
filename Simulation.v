@@ -1,13 +1,14 @@
 Require Import Coq.Lists.List.
 Require Import Coq.Lists.Streams.
 Require Import Coq.NArith.NArith.
-Require Import Coq.Strings.Ascii.
+Require Import Coq.Strings.String.
 Require Import ErrorHandlers.All.
 Require Import ListString.All.
 Require Import Computation.
+Require Socket.
 
 Import ListNotations.
-Local Open Scope char.
+Local Open Scope string.
 
 Module Run.
   Inductive t : C.t -> Type :=
@@ -89,29 +90,31 @@ Module Examples.
     Defined.
   End EchoUnordered.
 
-(*  (** A simple server giving the time to each connection. *)
+  (** A simple server giving the time to each connection. *)
   Module TimeServer.
     (** Convert a time into a string. *)
     Parameter string_of_time : N -> LString.t.
 
     (** Send the current time to a client. *)
-    Definition handle_client (client_socket : ClientSocketId.t) : C.t :=
-      let! time := Command.Time @ tt in
+    Definition handle_client (client_socket : Socket.Client.Id.t) : C.t :=
+      let! time : N := "time" in
       let message := string_of_time time in
-      let! is_written := Command.ClientSocketWrite @ (client_socket, message) in
+      let! is_written : bool := ("write", client_socket, message) in
       if is_written then
-        do! Command.ClientSocketClose @ client_socket in
+        let! is_closed : bool := ("close", client_socket) in
         C.Ret
       else
         C.Ret.
 
     (** Accept in parallel `fuel` clients. *)
-    Fixpoint accept_clients (server_socket : ServerSocketId.t) (fuel : nat) : C.t :=
+    Fixpoint accept_clients (server_socket : Socket.Server.Id.t) (fuel : nat)
+      : C.t :=
       match fuel with
       | O => C.Ret
       | S fuel =>
         C.Par (accept_clients server_socket fuel) (
-          let! client_socket := Command.ServerSocketAccept @ server_socket in
+          let! client_socket : option Socket.Client.Id.t :=
+            ("accept", server_socket) in
           match client_socket with
           | None => C.Ret
           | Some client_socket => handle_client client_socket
@@ -120,47 +123,47 @@ Module Examples.
 
     (** The main program. *)
     Definition program (port : N) (fuel : nat) : C.t :=
-      let! server_socket := Command.ServerSocketBind @ port in
+      let! server_socket : option Socket.Server.Id.t := ("bind", port) in
       match server_socket with
       | None => C.Ret
       | Some server_socket => accept_clients server_socket fuel
       end.
 
     (** Run a client, assuming the socket writing and closing succeed. *)
-    Definition run_handle_client (client_socket : ClientSocketId.t) (time : N)
+    Definition run_handle_client (client_socket : Socket.Client.Id.t) (time : N)
       : Run.t (handle_client client_socket).
-      apply (Run.Send Command.Time tt time).
-      apply (Run.Send Command.ClientSocketWrite (client_socket, _) true).
-      apply (Run.Send Command.ClientSocketClose client_socket true).
+      apply (Run.Let time "time").
+      apply (Run.Let true ("write", client_socket, _)).
+      apply (Run.Let true ("close", client_socket)).
       exact Run.Ret.
     Defined.
 
     (** Accept a list of clients. *)
-    Fixpoint run_accept_clients (server_socket : ServerSocketId.t)
-      (client_sockets_times : list (ClientSocketId.t * N))
+    Fixpoint run_accept_clients (server_socket : Socket.Server.Id.t)
+      (client_sockets_times : list (Socket.Client.Id.t * N))
       : Run.t (accept_clients server_socket (List.length client_sockets_times)).
       destruct client_sockets_times as [| [client_socket time] client_sockets_times].
       - exact Run.Ret.
       - apply Run.Par.
         * exact (run_accept_clients server_socket client_sockets_times).
-        * apply (Run.Send Command.ServerSocketAccept server_socket (Some client_socket)).
+        * apply (Run.Let (Some client_socket) ("accept", server_socket)).
           exact (run_handle_client client_socket time).
     Defined.
 
     (** Run but fail to bind the socket server. *)
     Definition run_unbound (port : N) (fuel : nat) : Run.t (program port fuel).
-      apply (Run.Send Command.ServerSocketBind port None).
+      apply (Run.Let None ("bind", port)).
       exact Run.Ret.
     Defined.
 
     (** Run and succeed to bind the socket server. *)
-    Definition run_bound (port : N) (server_socket : ServerSocketId.t)
-      (client_sockets_times : list (ClientSocketId.t * N))
+    Definition run_bound (port : N) (server_socket : Socket.Server.Id.t)
+      (client_sockets_times : list (Socket.Client.Id.t * N))
       : Run.t (program port (List.length client_sockets_times)).
-      apply (Run.Send Command.ServerSocketBind port (Some server_socket)).
+      apply (Run.Let (Some server_socket) ("bind", port)).
       exact (run_accept_clients server_socket client_sockets_times).
     Defined.
-  End TimeServer.*)
+  End TimeServer.
 End Examples.
 
 (*Module Database.
