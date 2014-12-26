@@ -161,9 +161,47 @@ Module Examples.
   End TimeServer.
 End Examples.
 
+Module Database.
+  Import C.Notations.
+
+  Module Kernel.
+    Module Message.
+      Inductive t (A : Type) : Type :=
+      | Read
+      | Write (data : A).
+    End Message.
+
+    Fixpoint program (A : Type) (fuel : nat) (data : A) : C.t :=
+      match fuel with
+      | O => C.Ret
+      | S fuel =>
+        let! message := Command.Read (Message.t A) @ tt in
+        match message with
+        | Message.Read =>
+          C.Par (program A fuel data) (
+            do! Command.Write A @ data in
+            C.Ret)
+        | Message.Write data => program A fuel data
+        end
+      end.
+  End Kernel.
+End Database.
+
 (** A group of clients can get connected. They must send their name as the
     first message. Next each message is considered as a text message and
     broadcast to other clients, with the sender name. On connection, all
     previous messages are sent to the new client. *)
-Module ChatServer.
-End ChatServer.
+(*Module ChatServer.
+  Import C.Notations.
+
+  Module Kernel.
+    Module Argument.
+      Inductive t : Set :=
+      | NewClient (name : LString.t)
+      | Message (message : LString.t).
+    End Argument.
+
+    Fixpoint kernel (fuel : nat) : C.t.
+    Admitted.
+  End Kernel.
+End ChatServer.*)
