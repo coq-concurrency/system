@@ -1,9 +1,20 @@
 (** The definition of a computation, used to represent concurrent programs. *)
 Module C.
-  Inductive t : Type :=
+  CoInductive t : Type :=
   | Ret : t
   | Par : t -> t -> t
   | Let : forall {output : Type} (input : Type), output -> (input -> t) -> t.
+
+  Definition step (c : t) : t :=
+    match c with
+    | Ret => Ret
+    | Par c1 c2 => Par c1 c2
+    | Let _ input o handler => Let input o handler
+    end.
+
+  Lemma step_eq (c : t) : c = step c.
+    destruct c; reflexivity.
+  Qed.
 
   Module Notations.
     Notation "'let!' i ':' I ':=' o 'in' X" := (Let I o (fun i => X))

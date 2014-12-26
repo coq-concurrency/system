@@ -1,5 +1,4 @@
 Require Import Coq.Lists.List.
-Require Import Coq.Lists.Streams.
 Require Import Coq.NArith.NArith.
 Require Import Coq.Strings.String.
 Require Import ErrorHandlers.All.
