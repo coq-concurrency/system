@@ -171,42 +171,45 @@ Module Database.
   Module Kernel.
     Module Message.
       Inductive t (A : Type) : Type :=
+      | Stop
       | Read
       | Write (data : A).
     End Message.
 
-    Fixpoint program (A : Type) (fuel : nat) (data : A) : C.t :=
-      match fuel with
-      | O => C.Ret
-      | S fuel =>
-        let! message : Message.t A := tt in
-        match message with
-        | Message.Read =>
-          C.Par (program A fuel data) (
-            do! data in
-            C.Ret)
-        | Message.Write data => program A fuel data
-        end
+    CoFixpoint program (A : Type) (data : A) : C.t :=
+      let! message : Message.t A := tt in
+      match message with
+      | Message.Stop => C.Ret
+      | Message.Read =>
+        C.Par (program A data) (
+          do! data in
+          C.Ret)
+      | Message.Write data => program A data
       end.
 
     Module Run.
-      Fixpoint only_read (A : Type) (init : A) (n : nat)
-        : Run.t (program A n init).
-        destruct n as [|n].
-        - exact Run.Ret.
+      Fixpoint only_read (A : Type) (init : A) (times : nat)
+        : Run.t (program A init).
+        rewrite C.step_eq.
+        destruct times as [|times].
+        - apply (Run.Let (Message.Stop A) tt).
+          exact Run.Ret.
         - apply (Run.Let (Message.Read A) tt).
           apply Run.Par.
-          + exact (only_read A init n).
+          + exact (only_read A init times).
           + apply (Run.do init).
             exact Run.Ret.
       Defined.
 
       Fixpoint writes_then_read (A : Type) (init : A) (datas : list A)
-        : Run.t (program A (S (List.length datas)) init).
+        : Run.t (program A init).
+        rewrite C.step_eq.
         destruct datas as [|data datas].
         - apply (Run.Let (Message.Read A) tt).
           apply Run.Par.
-          + exact Run.Ret.
+          + rewrite C.step_eq.
+            apply (Run.Let (Message.Stop A) tt).
+            exact Run.Ret.
           + apply (Run.do init).
             exact Run.Ret.
         - apply (Run.Let (Message.Write A data) tt).
@@ -215,39 +218,29 @@ Module Database.
     End Run.
   End Kernel.
 
-  Fixpoint handle_client (A : Type) (fuel : nat) (client : Socket.Client.Id.t)
-    : C.t :=
-    match fuel with
-    | O => C.Ret
-    | S fuel =>
-      let! request : option A := ("read", client) in
-      C.Par (handle_client A fuel client) (
-        let message :=
-          match request with
-          | None => Kernel.Message.Read A
-          | Some data => Kernel.Message.Write A data
-          end in
-        do! message in C.Ret)
-    end.
+  CoFixpoint handle_client (A : Type) (client : Socket.Client.Id.t) : C.t :=
+    let! request : option A := ("read", client) in
+    C.Par (handle_client A client) (
+      let message :=
+        match request with
+        | None => Kernel.Message.Read A
+        | Some data => Kernel.Message.Write A data
+        end in
+      do! message in C.Ret).
 
-  Fixpoint accept_clients (A : Type) (fuel : nat) (server : Socket.Server.Id.t)
-    : C.t :=
-    match fuel with
-    | O => C.Ret
-    | S fuel =>
-      let! client : option Socket.Client.Id.t := ("accept", server) in
-      C.Par (accept_clients A fuel server) (
-        match client with
-        | None => C.Ret
-        | Some client => handle_client A fuel client
-        end)
-    end.
+  CoFixpoint accept_clients (A : Type) (server : Socket.Server.Id.t) : C.t :=
+    let! client : option Socket.Client.Id.t := ("accept", server) in
+    C.Par (accept_clients A server) (
+      match client with
+      | None => C.Ret
+      | Some client => handle_client A client
+      end).
 
-  Definition program (A : Type) (fuel : nat) (port : N) : C.t :=
+  Definition program (A : Type) (port : N) : C.t :=
     let! server : option Socket.Server.Id.t := ("bind", port) in
     match server with
     | None => C.Ret
-    | Some server => accept_clients A fuel server
+    | Some server => accept_clients A server
     end.
 End Database.
 
