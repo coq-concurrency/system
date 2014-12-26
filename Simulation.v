@@ -7,7 +7,9 @@ Require Import Computation.
 Require Socket.
 
 Import ListNotations.
+Local Open Scope type.
 Local Open Scope string.
+Local Open Scope list.
 
 Module Run.
   Inductive t : C.t -> Type :=
@@ -188,7 +190,7 @@ Module Database.
       end.
 
     Module Run.
-      Fixpoint only_read (A : Type) (init : A) (times : nat)
+      Fixpoint only_reads (A : Type) (init : A) (times : nat)
         : Run.t (program A init).
         rewrite C.step_eq.
         destruct times as [|times].
@@ -196,7 +198,7 @@ Module Database.
           exact Run.Ret.
         - apply (Run.Let (Message.Read A) tt).
           apply Run.Par.
-          + exact (only_read A init times).
+          + exact (only_reads A init times).
           + apply (Run.do init).
             exact Run.Ret.
       Defined.
@@ -248,17 +250,79 @@ End Database.
     first message. Next each message is considered as a text message and
     broadcast to other clients, with the sender name. On connection, all
     previous messages are sent to the new client. *)
-(*Module ChatServer.
+Module ChatServer.
   Import C.Notations.
 
   Module Kernel.
+    Module Client.
+      Definition t := LString.t.
+    End Client.
+
+    Module Clients.
+      Parameter t : Type.
+
+      Parameter empty : t.
+      Parameter add : t -> Socket.Client.Id.t -> Client.t -> t.
+      Parameter remove : t -> Socket.Client.Id.t -> t.
+      Parameter find : t -> Socket.Client.Id.t -> option Client.t.
+    End Clients.
+
+    Module Messages.
+      Definition t := list (LString.t * LString.t).
+
+      Definition add (messages : t) (name : LString.t) (message : LString.t)
+        : t :=
+        (name, message) :: messages.
+
+      Fixpoint to_string (messages : t) : LString.t :=
+        match messages with
+        | [] => LString.s ""
+        | (name, message) :: messages =>
+          name ++ LString.s ": " ++ message ++ [LString.Char.n] ++
+          to_string messages
+        end.
+    End Messages.
+
     Module Argument.
       Inductive t : Set :=
+      | Stop
       | NewClient (name : LString.t)
       | Message (message : LString.t).
     End Argument.
 
-    Fixpoint kernel (fuel : nat) : C.t.
+    Module Input.
+      Record t : Set := New {
+        client : Socket.Client.Id.t;
+        argument : Argument.t}.
+    End Input.
+
+    Definition welcome_client (client : Socket.Client.Id.t)
+      (messages : Messages.t) : C.t :=
+      let welcome_message := Messages.to_string messages in
+      let! is_success : bool := ("write", client, welcome_message) in
+      C.Ret.
+
+    (* TODO *)
+    Definition broadcast_message (clients : Clients.t)
+      (name : LString.t) (message : LString.t) : C.t.
     Admitted.
+
+    CoFixpoint program (clients : Clients.t) (messages : Messages.t) : C.t :=
+      let! input : Input.t := tt in
+      let client := Input.client input in
+      match Input.argument input with
+      | Argument.Stop => C.Ret
+      | Argument.NewClient name =>
+        let clients := Clients.add clients client name in
+        C.Par (program clients messages) (welcome_client client messages)
+      | Argument.Message message =>
+        match Clients.find clients client with
+        | None => program clients messages
+        | Some name =>
+          let messages := Messages.add messages name message in
+          C.Par (program clients messages)
+            (broadcast_message clients name message)
+        end
+      end.
   End Kernel.
-End ChatServer.*)
+End ChatServer.
