@@ -189,6 +189,31 @@ Module Database.
         | Message.Write data => program A fuel data
         end
       end.
+
+    Module Run.
+      Fixpoint only_read (A : Type) (init : A) (n : nat)
+        : Run.t (program A n init).
+        destruct n as [|n].
+        - exact Run.Ret.
+        - apply (Run.Let (Message.Read A) tt).
+          apply Run.Par.
+          + exact (only_read A init n).
+          + apply (Run.do init).
+            exact Run.Ret.
+      Defined.
+
+      Fixpoint writes_then_read (A : Type) (init : A) (datas : list A)
+        : Run.t (program A (S (List.length datas)) init).
+        destruct datas as [|data datas].
+        - apply (Run.Let (Message.Read A) tt).
+          apply Run.Par.
+          + exact Run.Ret.
+          + apply (Run.do init).
+            exact Run.Ret.
+        - apply (Run.Let (Message.Write A data) tt).
+          exact (writes_then_read A data datas).
+      Defined.      
+    End Run.
   End Kernel.
 
   Fixpoint handle_client (A : Type) (fuel : nat) (client : Socket.Client.Id.t)
