@@ -13,12 +13,12 @@ Module Run.
   Inductive t : C.t -> Type :=
   | Ret : t C.Ret
   | Par : forall {c1 c2 : C.t}, t c1 -> t c2 -> t (C.Par c1 c2)
-  | Let : forall {output : Type} (input : Type) (o : output) (i : input)
+  | Let : forall {input output : Type} (i : input) (o : output)
     {handler : input -> C.t}, t (handler i) -> t (C.Let input o handler).
 
   Definition do {output : Type} (o : output) {handler : unit -> C.t}
     (handler_run : t (handler tt)) : t (C.Let _ _ _) :=
-    Let unit o tt handler_run.
+    Let tt o handler_run.
 End Run.
 
 Module Examples.
@@ -44,20 +44,20 @@ Module Examples.
       C.Ret.
 
     Definition run (message : LString.t) : Run.t program.
-      apply (Run.Let LString.t tt message).
+      apply (Run.Let message tt).
       apply (Run.do message).
       exact Run.Ret.
     Defined.
   End EchoOne.
 
-(*  (** Echo a list of messages in sequence. *)
+  (** Echo a list of messages in sequence. *)
   Module EchoOrdered.
     Fixpoint program (fuel : nat) : C.t :=
       match fuel with
       | O => C.Ret
       | S fuel =>
-        let! message := Command.ConsoleRead @ tt in
-        do! Command.ConsoleWrite @ message in
+        let! message : LString.t := tt in
+        do! message in
         program fuel
       end.
 
@@ -65,8 +65,8 @@ Module Examples.
       : Run.t (program (List.length messages)).
       destruct messages as [|message messages].
       - exact Run.Ret.
-      - apply (Run.Send Command.ConsoleRead _ message).
-        apply (Run.Send Command.ConsoleWrite message tt).
+      - apply (Run.Let message tt).
+        apply (Run.do message).
         exact (run messages).
     Defined.
   End EchoOrdered.
@@ -89,7 +89,7 @@ Module Examples.
     Defined.
   End EchoUnordered.
 
-  (** A simple server giving the time to each connection. *)
+(*  (** A simple server giving the time to each connection. *)
   Module TimeServer.
     (** Convert a time into a string. *)
     Parameter string_of_time : N -> LString.t.
