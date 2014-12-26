@@ -166,7 +166,7 @@ Module Examples.
   End TimeServer.
 End Examples.
 
-(*Module Database.
+Module Database.
   Import C.Notations.
 
   Module Kernel.
@@ -180,17 +180,17 @@ End Examples.
       match fuel with
       | O => C.Ret
       | S fuel =>
-        let! message := Command.Read (Message.t A) @ tt in
+        let! message : Message.t A := tt in
         match message with
         | Message.Read =>
           C.Par (program A fuel data) (
-            do! Command.Write A @ data in
+            do! data in
             C.Ret)
         | Message.Write data => program A fuel data
         end
       end.
   End Kernel.
-End Database.*)
+End Database.
 
 (** A group of clients can get connected. They must send their name as the
     first message. Next each message is considered as a text message and
