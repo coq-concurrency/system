@@ -190,6 +190,41 @@ Module Database.
         end
       end.
   End Kernel.
+
+  Fixpoint handle_client (A : Type) (fuel : nat) (client : Socket.Client.Id.t)
+    : C.t :=
+    match fuel with
+    | O => C.Ret
+    | S fuel =>
+      let! request : option A := ("read", client) in
+      C.Par (handle_client A fuel client) (
+        let message :=
+          match request with
+          | None => Kernel.Message.Read A
+          | Some data => Kernel.Message.Write A data
+          end in
+        do! message in C.Ret)
+    end.
+
+  Fixpoint accept_clients (A : Type) (fuel : nat) (server : Socket.Server.Id.t)
+    : C.t :=
+    match fuel with
+    | O => C.Ret
+    | S fuel =>
+      let! client : option Socket.Client.Id.t := ("accept", server) in
+      C.Par (accept_clients A fuel server) (
+        match client with
+        | None => C.Ret
+        | Some client => handle_client A fuel client
+        end)
+    end.
+
+  Definition program (A : Type) (fuel : nat) (port : N) : C.t :=
+    let! server : option Socket.Server.Id.t := ("bind", port) in
+    match server with
+    | None => C.Ret
+    | Some server => accept_clients A fuel server
+    end.
 End Database.
 
 (** A group of clients can get connected. They must send their name as the
