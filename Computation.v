@@ -7,13 +7,13 @@ Module C.
   Inductive t : Type :=
   | Ret : t
   | Par : t -> t -> t
-  | Send : forall {output : Type} (input : Type), output -> (input -> t) -> t.
+  | Let : forall {output : Type} (input : Type), output -> (input -> t) -> t.
 
   Module Notations.
-    Notation "'let!' i ':' I ':=' o 'in' X" := (Send I o (fun i => X))
+    Notation "'let!' i ':' I ':=' o 'in' X" := (Let I o (fun i => X))
       (at level 200, i ident, I at level 100, o at level 100, X at level 200).
 
-    Notation "'do!' o 'in' X" := (Send unit o (fun _ => X))
+    Notation "'do!' o 'in' X" := (Let unit o (fun _ => X))
       (at level 200, o at level 100, X at level 200).
   End Notations.
 End C.

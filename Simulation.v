@@ -13,21 +13,25 @@ Module Run.
   Inductive t : C.t -> Type :=
   | Ret : t C.Ret
   | Par : forall {c1 c2 : C.t}, t c1 -> t c2 -> t (C.Par c1 c2)
-  | Send : forall {output : Type} (input : Type) (o : output) (i : input)
-    {handler : input -> C.t}, t (handler i) -> t (C.Send input o handler).
+  | Let : forall {output : Type} (input : Type) (o : output) (i : input)
+    {handler : input -> C.t}, t (handler i) -> t (C.Let input o handler).
+
+  Definition do {output : Type} (o : output) {handler : unit -> C.t}
+    (handler_run : t (handler tt)) : t (C.Let _ _ _) :=
+    Let unit o tt handler_run.
 End Run.
 
-(*Module Examples.
+Module Examples.
   Import C.Notations.
 
   (** Hello world. *)
   Module HelloWorld.
     Definition program : C.t :=
-      do! Command.ConsoleWrite @ LString.s "Hello world!" in
+      do! LString.s "Hello world!" in
       C.Ret.
 
     Definition run : Run.t program.
-      apply (Run.Send Command.ConsoleWrite (LString.s "Hello world!") tt).
+      apply (Run.do (LString.s "Hello world!")).
       exact Run.Ret.
     Defined.
   End HelloWorld.
@@ -35,18 +39,18 @@ End Run.
   (** Echo one message. *)
   Module EchoOne.
     Definition program : C.t :=
-      let! message := Command.ConsoleRead @ tt in
-      do! Command.ConsoleWrite @ message in
+      let! message : LString.t := tt in
+      do! message in
       C.Ret.
 
     Definition run (message : LString.t) : Run.t program.
-      apply (Run.Send Command.ConsoleRead tt message).
-      apply (Run.Send Command.ConsoleWrite message tt).
+      apply (Run.Let LString.t tt message).
+      apply (Run.do message).
       exact Run.Ret.
     Defined.
   End EchoOne.
 
-  (** Echo a list of messages in sequence. *)
+(*  (** Echo a list of messages in sequence. *)
   Module EchoOrdered.
     Fixpoint program (fuel : nat) : C.t :=
       match fuel with
@@ -156,8 +160,8 @@ End Run.
       apply (Run.Send Command.ServerSocketBind port (Some server_socket)).
       exact (run_accept_clients server_socket client_sockets_times).
     Defined.
-  End TimeServer.
-End Examples.*)
+  End TimeServer.*)
+End Examples.
 
 (*Module Database.
   Import C.Notations.
