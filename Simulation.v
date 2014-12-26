@@ -5,7 +5,6 @@ Require Import Coq.Strings.Ascii.
 Require Import ErrorHandlers.All.
 Require Import ListString.All.
 Require Import Computation.
-Require Import Events.
 
 Import ListNotations.
 Local Open Scope char.
@@ -14,9 +13,8 @@ Module Run.
   Inductive t : C.t -> Type :=
   | Ret : t C.Ret
   | Par : forall {c1 c2 : C.t}, t c1 -> t c2 -> t (C.Par c1 c2)
-  | Send : forall (command : Command.t) (request : Command.request command)
-    (answer : Command.answer command) {handler : Command.answer command -> C.t},
-    t (handler answer) -> t (C.Send command request handler).
+  | Send : forall {output : Type} (input : Type) (o : output) (i : input)
+    {handler : input -> C.t}, t (handler i) -> t (C.Send input o handler).
 End Run.
 
 (*Module Examples.
@@ -161,7 +159,7 @@ End Run.
   End TimeServer.
 End Examples.*)
 
-Module Database.
+(*Module Database.
   Import C.Notations.
 
   Module Kernel.
@@ -185,7 +183,7 @@ Module Database.
         end
       end.
   End Kernel.
-End Database.
+End Database.*)
 
 (** A group of clients can get connected. They must send their name as the
     first message. Next each message is considered as a text message and
