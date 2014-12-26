@@ -265,6 +265,7 @@ Module ChatServer.
       Parameter add : t -> Socket.Client.Id.t -> Client.t -> t.
       Parameter remove : t -> Socket.Client.Id.t -> t.
       Parameter find : t -> Socket.Client.Id.t -> option Client.t.
+      Parameter iter : t -> (Socket.Client.Id.t -> Client.t -> C.t -> C.t) -> C.t -> C.t.
     End Clients.
 
     Module Messages.
@@ -302,10 +303,13 @@ Module ChatServer.
       let! is_success : bool := ("write", client, welcome_message) in
       C.Ret.
 
-    (* TODO *)
-    Definition broadcast_message (clients : Clients.t)
-      (name : LString.t) (message : LString.t) : C.t.
-    Admitted.
+    Definition broadcast_message (clients : Clients.t) (name : LString.t)
+      (message : LString.t) : C.t :=
+      let formatted_message := name ++ LString.s ": " ++ message in
+      Clients.iter clients (fun client _ next =>
+        let! is_success : bool := ("write", client, formatted_message) in
+        next)
+        C.Ret.
 
     CoFixpoint program (clients : Clients.t) (messages : Messages.t) : C.t :=
       let! input : Input.t := tt in
