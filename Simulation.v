@@ -19,7 +19,7 @@ Module Run.
     t (handler answer) -> t (C.Send command request handler).
 End Run.
 
-Module Examples.
+(*Module Examples.
   Import C.Notations.
 
   (** Hello world. *)
@@ -159,7 +159,7 @@ Module Examples.
       exact (run_accept_clients server_socket client_sockets_times).
     Defined.
   End TimeServer.
-End Examples.
+End Examples.*)
 
 Module Database.
   Import C.Notations.
