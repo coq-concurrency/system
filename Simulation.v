@@ -178,3 +178,10 @@ Module Examples.
     Defined.
   End HandlePar.
 End Examples.
+
+(** A group of clients can get connected. They must send their name as the
+    first message. Next each message is considered as a text message and
+    broadcast to other clients, with the sender name. On connection, all
+    previous messages are sent to the new client. *)
+Module ChatServer.
+End ChatServer.
