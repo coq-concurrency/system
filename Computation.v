@@ -5,7 +5,7 @@ Require Import Events.
 
 (** Definition of a computation. *)
 Module C.
-  CoInductive t : Type :=
+  Inductive t : Type :=
   | Ret : t
   | Par : t -> t -> t
   | Send : forall (command : Command.t), Command.request command ->
