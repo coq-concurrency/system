@@ -5,6 +5,7 @@ opam*/
 Makefile
 extraction/*.ml
 extraction/*.mli
+.coq-native/
 *.bak
 *.vo
 *.glob
