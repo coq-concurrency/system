@@ -15,7 +15,7 @@ Local Open Scope string.
 (** Do nothing. *)
 Module DoNothing.
   Definition program (argv : list LString.t) : C.t [] unit :=
-    C.Exit tt.
+    C.Exit.
 
   Definition test1 :
     Run.run_on_inputs (program []) Memory.Nil [] = (true, []) :=
@@ -27,7 +27,7 @@ Module HelloWorld.
   Definition program (argv : list LString.t) : C.t [] unit :=
     Log.write (LString.s "Hello") (fun _ =>
     Log.write (LString.s "world!") (fun _ =>
-    C.Exit tt)).
+    C.Exit)).
 
   Definition test1 : Run.run_on_inputs (program []) Memory.Nil [
     Input.New Command.Log 1 true;
@@ -56,10 +56,10 @@ Module ReadFile.
         | None => (LString.s "Error: cannot read the file.")
         | Some content => content
         end in
-      Log.write message (fun _ => C.Exit tt))
+      Log.write message (fun _ => C.Exit))
     | _ =>
       Log.write (LString.s "One parameter (the file to read) expected.") (fun _ =>
-      C.Exit tt)
+      C.Exit)
     end.
 End ReadFile.
 
@@ -72,7 +72,7 @@ Module EchoServer.
       match client_id with
       | None =>
         do! Log.write (LString.s "Server socket failed.") (fun _ => C.Ret tt) in
-        C.Exit tt
+        C.Exit
       | Some client_id =>
         ClientSocket.read client_id tt (fun _ content =>
         match content with

@@ -57,15 +57,6 @@ Module Command.
   Defined.
 End Command.
 
-(** The type of an input. *)
-Module Input.
-  (** An input is a command, a (fresh) channel id and an argument. *)
-  Record t : Set := New {
-    command : Command.t;
-    id : positive;
-    argument : Command.answer command }.
-End Input.
-
 (** The type of an output. *)
 Module Output.
   (** An output is a command, a channel id and an argument. *)
@@ -74,3 +65,12 @@ Module Output.
     id : positive;
     argument : Command.request command }.
 End Output.
+
+(** The type of an input. *)
+Module Input.
+  (** An input is a command, a channel id and an argument. *)
+  Record t : Set := New {
+    command : Command.t;
+    id : positive;
+    argument : Command.answer command }.
+End Input.

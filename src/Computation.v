@@ -60,7 +60,7 @@ Module C.
     A -> (A -> Command.answer command -> t sig (option A)) -> t sig unit
     (** Sends a request to the operating system, and react to answers with the
         handler. *)
-  | Exit : unit -> t sig unit
+  | Exit : t sig unit
     (** Terminate the program. *).
   (* We force the `sig` argument to be implicit. *)
   Arguments Ret {sig A} _.
@@ -68,7 +68,7 @@ Module C.
   Arguments Read {sig A} _.
   Arguments Write {sig A _} _.
   Arguments Send {sig A} _ _ _ _.
-  Arguments Exit {sig} _.
+  Arguments Exit {sig}.
 
   (** Monadic notation. *)
   Module Notations.
