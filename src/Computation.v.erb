@@ -15,13 +15,13 @@ Module Memory.
   Inductive t : Signature.t -> Type :=
   | Nil : t []
   | Cons : forall {A : Type} {sig : Signature.t}, A -> t sig -> t (A :: sig).
-  
+
   (** The first shared memory cell. *)
   Definition head {A : Type} {sig : Signature.t} (mem : t (A :: sig)) : A :=
     match mem with
     | Cons <%= "_ _" if version[0..2] == "8.4" %> x _ => x
     end.
-  
+
   (** The tail of the shared memory. *)
   Definition tail {A : Type} {sig : Signature.t} (mem : t (A :: sig)) : t sig :=
     match mem with

@@ -134,7 +134,7 @@ Module Input.
     Option.bind (commands |> List.find (fun x =>
       LString.eqb command @@ LString.s @@ fst x)) (fun x =>
     Some (snd x)).
-  
+
   (** Try to import the string of a boolean. *)
   Definition import_bool (b : Native.String.t) : option bool :=
     let b := Native.String.to_string b in
