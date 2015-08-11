@@ -143,7 +143,7 @@ Fixpoint run {sig : Signature.t} {A : Type} (call_backs : CallBacks.t sig)
     let (id, call_backs) := CallBacks.add call_backs call_back in
     let output := Output.New _ id request in
     (Some tt, call_backs, mem, output :: outputs)
-  | C.Exit => (None, call_backs, mem, outputs)
+  | C.Exit <%= "_" if version[0..2] == "8.4" %> => (None, call_backs, mem, outputs)
   end.
 
 (** Run a set of callbacks on a list of inputs. Return if the program exited and

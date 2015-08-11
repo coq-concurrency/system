@@ -54,13 +54,13 @@ Module C.
   | Bind : forall (A B : Type), t sig A -> (A -> t sig B) -> t sig B
   | Read : forall (A : Type), `{Ref.C A sig} -> t sig A
     (** Read the value of a reference (atomic). *)
-  | Write : forall {A : Type}, `{Ref.C A sig} -> A -> t sig unit
+  | Write : forall (A : Type), `{Ref.C A sig} -> A -> t sig unit
     (** Write a value in a reference (atomic). *)
-  | Send : forall {A : Type} (command : Command.t), Command.request command ->
+  | Send : forall (A : Type) (command : Command.t), Command.request command ->
     A -> (A -> Command.answer command -> t sig (option A)) -> t sig unit
     (** Sends a request to the operating system, and react to answers with the
         handler. *)
-  | Exit : t sig unit
+  | Exit : forall (A : Type), t sig A
     (** Terminate the program. *).
   (* We force the `sig` argument to be implicit. *)
   Arguments Ret {sig A} _.
@@ -68,7 +68,7 @@ Module C.
   Arguments Read {sig A} _.
   Arguments Write {sig A _} _.
   Arguments Send {sig A} _ _ _ _.
-  Arguments Exit {sig}.
+  Arguments Exit {sig A}.
 
   (** Monadic notation. *)
   Module Notations.
