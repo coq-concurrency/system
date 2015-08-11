@@ -1,8 +1,8 @@
--R . Concurrency
+-R src Concurrency
 
-Computation.v
-Events.v
-Extraction.v
-Run.v
-StdLib.v
-Test.v
+src/Computation.v
+src/Events.v
+src/Extraction.v
+src/Run.v
+src/StdLib.v
+src/Test.v
