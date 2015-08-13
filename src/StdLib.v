@@ -57,7 +57,7 @@ Module ServerSocket.
     (handler : option ClientSocketId.t -> C.t sig unit) : C.t sig unit :=
     C.Send Command.ServerSocketBind port tt (fun _ client =>
       do! handler client in
-      C.Ret None).
+      C.Ret (Some tt)).
 End ServerSocket.
 
 (** Get the current time. *)

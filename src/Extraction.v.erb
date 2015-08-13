@@ -327,7 +327,7 @@ Definition run {sig : Signature.t} (mem : Memory.t sig)
                         let call_backs :=
                           (* Check if the callback is terminated. *)
                           match a with
-                          | None => call_backs
+                          | None => CallBacks.remove call_backs id
                           | Some a =>
                             (* Update the store of the callback if it is not terminated. *)
                             let call_back := CallBack.New a handler in

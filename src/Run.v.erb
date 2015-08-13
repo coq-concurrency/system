@@ -86,7 +86,7 @@ Module CallBacks.
   (** The store of callbacks is a heap of callbacks plus the `next` free
       position where a callback should be added. *)
   Record t (sig : Signature.t) : Type := New {
-    heap : Heap.t {command : Command.t & CallBack.t sig command};
+    heap : Heap.t (option {command : Command.t & CallBack.t sig command});
     next : positive }.
   Arguments New {sig} _ _.
   Arguments heap {sig} _.
@@ -102,15 +102,16 @@ Module CallBacks.
     (call_back : CallBack.t sig command) : positive * t sig :=
     let id := next call_backs in
     (id, {|
-      heap := Heap.add (heap call_backs) (existT _ command call_back) id;
+      heap := Heap.add (heap call_backs) (Some (existT _ command call_back)) id;
       next := id + 1 |}).
 
   (** Find a callback at position `id`, else return `None`. *)
   Definition find {sig : Signature.t} (call_backs : t sig) {command : Command.t}
     (id : positive) : option (CallBack.t sig command) :=
     match Heap.find (heap call_backs) id with
-    | None => None
-    | Some (existT <%= "_" unless version[0..2] == "8.4" %> command' call_back) =>
+    | None | Some None => None
+    | Some (Some (
+        existT <%= "_" unless version[0..2] == "8.4" %> command' call_back)) =>
       match Command.eq_dec command command' with
       | left Heq =>
           eq_rect_r (fun c => option (CallBack.t sig c)) (Some call_back) Heq
@@ -118,10 +119,17 @@ Module CallBacks.
       end
     end.
 
-  (** Update a store. *)
+  (** Update a callback. *)
   Definition update {sig : Signature.t} (call_backs : t sig) (id : positive)
     {command : Command.t} (call_back : CallBack.t sig command) : t sig := {|
-    heap := Heap.update (heap call_backs) id (existT _ command call_back);
+    heap := Heap.update (heap call_backs) id
+      (Some (existT _ command call_back));
+    next := next call_backs |}.
+
+  (** Remove a callback. *)
+  Definition remove {sig : Signature.t} (call_backs : t sig) (id : positive)
+    : t sig := {|
+    heap := Heap.update (heap call_backs) id None;
     next := next call_backs |}.
 End CallBacks.
 
