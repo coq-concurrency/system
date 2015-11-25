@@ -25,14 +25,11 @@ RUN opam install -y coq
 # Tools
 RUN apt-get install -y inotify-tools
 
-# Coq repositories
-RUN echo 2
-RUN opam repo add coq-stable https://github.com/coq/repo-stable.git
-RUN opam repo add coq-testing https://github.com/coq/repo-testing.git
-RUN opam repo add coq-unstable https://github.com/coq/repo-unstable.git
+# Coq repository
+RUN opam repo add coq-released https://coq.inria.fr/opam/released
 
 # Dependencies
-RUN opam install -y coq:error-handlers coq:function-ninjas coq:list-string
+RUN opam install -y coq-error-handlers coq-function-ninjas coq-list-string
 
 # Build
 ADD . /root/system
