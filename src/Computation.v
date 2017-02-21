@@ -66,7 +66,7 @@ Module C.
   Arguments Ret {sig A} _.
   Arguments Bind {sig A B} _ _.
   Arguments Read {sig A} _.
-  Arguments Write {sig A _} _.
+  Arguments Write {sig A} _.
   Arguments Send {sig A} _ _ _ _.
   Arguments Exit {sig A}.
 
